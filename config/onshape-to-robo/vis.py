@@ -15,8 +15,10 @@ p.loadURDF("plane.urdf")
 robot_start_position = [0, 0, 0.5]
 robot_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
 
-# Construct the full path to the URDF file
-urdf_path = os.path.join(os.path.dirname(__file__), "robot.urdf")
+# Construct the full path to the URDF file from the project root
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+urdf_path = os.path.join(project_root, "assets", "urdf", "so100.urdf")
+print(f"Loading URDF from: {urdf_path}")
 
 # Load the URDF from its path
 robotId = p.loadURDF(urdf_path, robot_start_position, robot_start_orientation)
