@@ -2,7 +2,7 @@
 The robot is based on the SO-ARM100 robotic arm, modified to incorporate a gripper at each end effector. The project aims to develop a reinforcement learning policy that enables the robot to navigate within a defined space by sequentially grasping objects, thereby achieving locomotion.
 
 
-![CAD Design](docs/images/cad_design_1.png)
+![CAD Design](docs/images/cad-design-1.png)
 
 
 ## Running the Training
