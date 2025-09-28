@@ -25,14 +25,14 @@ To start the training and visualize the process in the Isaac Sim GUI, follow the
 
 3.  **Run the Training Script**: Execute the following command to launch Isaac Sim, load the environment, and begin training.
     ```cmd
-    isaaclab.bat -p source/main.py
+    isaaclab.bat -p src/main.py --task DualArmBrachiation
     ```
 
-This command runs the `source/main.py` script. Because the `--headless` flag is not specified, Isaac Sim will launch with its full graphical user interface, allowing you to watch the robot learn in real-time.
+This command runs the `src/main.py` script. Because the `--headless` flag is not specified, Isaac Sim will launch with its full graphical user interface, allowing you to watch the robot learn in real-time.
 
 ### Customizing the Training Run
 
 You can modify the training parameters directly from the command line. For example, to run with a different number of parallel environments:
 
 ```cmd
-isaaclab.bat -p source/main.py --num_envs 1024
+isaaclab.bat -p src/main.py --task DualArmBrachiation --num_envs 1024
