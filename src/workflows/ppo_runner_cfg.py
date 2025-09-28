@@ -11,7 +11,7 @@ PPO runner configuration for the dual-arm walking (brachiation) task.
 """
 
 from omni.isaac.lab.utils import configclass
-from omni.isaac.lab_rl.rl_games import RlGamesGpuPPORunnerCfg
+from omni.isaac.lab_rl.runners import RlGamesGpuPPORunnerCfg
 
 
 @configclass
