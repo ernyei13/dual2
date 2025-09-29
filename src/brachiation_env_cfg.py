@@ -17,7 +17,7 @@ import omni.isaac.lab.sim as sim_utils
 SO100_CFG = ArticulationCfg(
     prim_path="{ENV_REGEX_NS}/Robot",
     spawn=sim_utils.UsdFileCfg(
-        usd_path="assets/urdf/so100.urdf", # Relative path to your URDF
+        usd_path="assets/urdf/robot.urdf", # Corrected path to match actual file
         activate_contact_sensors=False,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,

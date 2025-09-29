@@ -1,38 +1,44 @@
-## Robot and project aim
-The robot is based on the SO-ARM100 robotic arm, modified to incorporate a gripper at each end effector. The project aims to develop a reinforcement learning policy that enables the robot to navigate within a defined space by sequentially grasping objects, thereby achieving locomotion.
+## Dual-Arm Brachiation RL Project
+
+This project trains a dual-arm robot to move by grasping objects using reinforcement learning in Isaac Lab.
 
 ![CAD Design](docs/images/cad-design-1.png)
 
-## Running the Training
-
-This project uses Isaac Lab for reinforcement learning. The following instructions explain how to start the training process for the dual-arm brachiation task on a Windows machine.
-
 ### Prerequisites
 
-*   You have successfully installed NVIDIA Isaac Lab on your Windows machine.
-*   You have cloned this repository.
+- Isaac Lab (latest version): https://github.com/NVIDIA-Omniverse/IsaacLab
+- Clone this repository
 
-### Launching the Training
+### How to Run
 
-To start the training and visualize the process in the Isaac Sim GUI, follow these steps:
+1. **Open Isaac Lab Terminal**
+    - Launch the Isaac Lab terminal (see Isaac Lab docs for your OS).
 
-1.  **Open the Isaac Lab Terminal**: Navigate to your Isaac Lab installation directory and run the batch file that opens a pre-configured command prompt. This ensures all necessary environment variables are set.
-
-2.  **Navigate to Project Directory**: In the terminal that just opened, navigate to the root of this project folder.
-    ```cmd
-    cd path\to\your\project\dual2
+2. **Navigate to Project Directory**
+    ```powershell
+    cd C:\Users\User\Documents\dev\robotics\dual2
     ```
 
-3.  **Run the Training Script**: Execute the following command to launch Isaac Sim, load the environment, and begin training.
-    ```cmd
-    isaaclab.bat -p src/main.py --task DualArmBrachiation
+3. **Run Training Script**
+    ```powershell
+  ..\IsaacLab\isaaclab.bat -p src/main.py --task DualArmBrachiation
     ```
+    This launches Isaac Sim with GUI and starts RL training.
 
-This command runs the `src/main.py` script. Because the `--headless` flag is not specified, Isaac Sim will launch with its full graphical user interface, allowing you to watch the robot learn in real-time.
+#### Options
 
-### Customizing the Training Run
+- Change number of environments:
+  ```powershell
+  ..\IsaacLab\isaaclab.bat -p src/main.py --task DualArmBrachiation --num_envs 1024
+  ```
+- Run headless (no GUI):
+  ```powershell
+  ..\IsaacLab\isaaclab.bat -p src/main.py --task DualArmBrachiation --headless
+  ```
 
-You can modify the training parameters directly from the command line. For example, to run with a different number of parallel environments:
+### Key Files
 
-```cmd
-isaaclab.bat -p src/main.py --task DualArmBrachiation --num_envs 1024
+- Robot URDF: `assets/urdf/robot.urdf`
+- Main script: `src/main.py`
+- Environment config: `src/brachiation_env_cfg.py`
+- RL config: `src/workflows/ppo_runner_cfg.py`
