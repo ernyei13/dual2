@@ -1,8 +1,8 @@
 """
-Gymnasium-compatible environment for dual-arm brachiation using MuJoCo.
+Gymnasium-compatible environment for dual-arm robot traversing walls using MuJoCo.
 
-This environment implements a dual-arm robot that learns to move by
-grasping and swinging from bars (brachiation locomotion).
+This environment implements a dual-arm robot that learns to climb over
+a series of walls to reach a target on the other side.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ import mujoco
 
 class BrachiationEnv(gym.Env):
     """
-    Dual-arm brachiation environment.
+    Dual-arm wall traversal environment.
     
-    The robot must learn to move forward by grasping bars and swinging,
-    similar to how gibbons move through trees.
+    The robot must learn to climb over 10 walls (30cm tall, 2cm thick, 15cm apart)
+    to reach a target on the other side.
     
     Observation Space:
         - Base position and orientation (7D: xyz + quaternion)
@@ -30,8 +30,10 @@ class BrachiationEnv(gym.Env):
         - Joint positions (8D: 5 for arm1, 3 for arm2)
         - Joint velocities (8D)
         - Fingertip positions (6D: 3 for each arm)
-        - Target bar position (3D)
-        Total: 38D
+        - Target position (3D)
+        - Distance to next wall (1D)
+        - Walls cleared count normalized (1D)
+        Total: 40D
     
     Action Space:
         - Joint position targets for all actuators (8D)
@@ -39,9 +41,10 @@ class BrachiationEnv(gym.Env):
     
     Rewards:
         - Forward progress reward
-        - Height maintenance reward
+        - Height maintenance for climbing
         - Energy efficiency penalty
-        - Grasping bonus
+        - Wall clearance bonus
+        - Target reach bonus
     """
     
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
@@ -109,9 +112,12 @@ class BrachiationEnv(gym.Env):
         self.viewer = None
         self.renderer = None
         
-        # Target bar tracking
-        self.current_target_bar = 0
-        self.bar_positions = self._get_bar_positions()
+        # Wall obstacle course setup
+        # 10 walls at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
+        self.wall_positions = np.array([0.15 + 0.15 * i for i in range(10)])
+        self.wall_height = 0.30  # 30cm tall
+        self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
+        self.walls_cleared = 0
         
     def _get_joint_ranges(self) -> np.ndarray:
         """Get joint position limits."""
@@ -123,15 +129,6 @@ class BrachiationEnv(gym.Env):
                 ranges.append(np.array([-np.pi, np.pi]))
         return np.array(ranges)
     
-    def _get_bar_positions(self) -> np.ndarray:
-        """Get positions of grasping bars."""
-        bar_positions = []
-        for name in ["bar1", "bar2", "bar3"]:
-            body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
-            if body_id >= 0:
-                bar_positions.append(self.model.body_pos[body_id].copy())
-        return np.array(bar_positions) if bar_positions else np.zeros((3, 3))
-    
     def _get_obs_dim(self) -> int:
         """Calculate observation dimension."""
         # Base pose: 3 (pos) + 4 (quat) = 7
@@ -139,8 +136,10 @@ class BrachiationEnv(gym.Env):
         # Joint positions: 8 (actuated joints)
         # Joint velocities: 8
         # Fingertip positions: 6 (2 arms * 3)
-        # Target bar position: 3
-        return 7 + 6 + 8 + 8 + 6 + 3
+        # Target position: 3
+        # Distance to next wall: 1
+        # Walls cleared (normalized): 1
+        return 7 + 6 + 8 + 8 + 6 + 3 + 1 + 1
     
     def _get_obs(self) -> np.ndarray:
         """Get current observation."""
@@ -163,11 +162,20 @@ class BrachiationEnv(gym.Env):
             joint_vel = np.pad(joint_vel, (0, 8 - len(joint_vel)))
         
         # Fingertip positions
-        arm1_fingertip = self._get_site_pos("arm1_touch_site")
-        arm2_fingertip = self._get_site_pos("arm2_touch_site")
+        arm1_fingertip = self._get_site_pos("arm1_tip")
+        arm2_fingertip = self._get_site_pos("arm2_tip")
         
-        # Target bar position
-        target_bar_pos = self.bar_positions[self.current_target_bar] if len(self.bar_positions) > 0 else np.zeros(3)
+        # Distance to next wall (or target if all walls cleared)
+        robot_x = base_pos[0]
+        next_wall_dist = 0.0
+        if self.walls_cleared < len(self.wall_positions):
+            next_wall_x = self.wall_positions[self.walls_cleared]
+            next_wall_dist = next_wall_x - robot_x
+        else:
+            next_wall_dist = self.target_pos[0] - robot_x
+        
+        # Walls cleared normalized (0 to 1)
+        walls_cleared_norm = self.walls_cleared / len(self.wall_positions)
         
         obs = np.concatenate([
             base_pos,
@@ -178,7 +186,9 @@ class BrachiationEnv(gym.Env):
             joint_vel[:8],
             arm1_fingertip,
             arm2_fingertip,
-            target_bar_pos,
+            self.target_pos,
+            [next_wall_dist],
+            [walls_cleared_norm],
         ]).astype(np.float32)
         
         return obs
@@ -209,9 +219,14 @@ class BrachiationEnv(gym.Env):
         # Reset MuJoCo state
         mujoco.mj_resetData(self.model, self.data)
         
-        # Add small random perturbation to initial joint positions
+        # Load the "hanging" keyframe if it exists
+        key_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "hanging")
+        if key_id >= 0:
+            mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+        
+        # Add small random perturbation to joint positions only (not base)
         if self.np_random is not None:
-            noise = self.np_random.uniform(-0.05, 0.05, size=self.model.nq)
+            noise = self.np_random.uniform(-0.02, 0.02, size=self.model.nq)
             noise[:7] = 0  # Don't perturb base pose
             self.data.qpos[:] += noise
         
@@ -221,10 +236,10 @@ class BrachiationEnv(gym.Env):
         # Store initial position
         self.initial_base_pos = self.data.qpos[:3].copy()
         self.current_step = 0
-        self.current_target_bar = 0
+        self.walls_cleared = 0
         
         obs = self._get_obs()
-        info = {"initial_pos": self.initial_base_pos.copy()}
+        info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": 0}
         
         return obs, info
     
@@ -257,6 +272,7 @@ class BrachiationEnv(gym.Env):
             "step": self.current_step,
             "base_pos": self.data.qpos[:3].copy(),
             "forward_distance": self.data.qpos[0] - self.initial_base_pos[0],
+            "walls_cleared": self.walls_cleared,
             **reward_info,
         }
         
@@ -269,49 +285,71 @@ class BrachiationEnv(gym.Env):
         
         # Current base position
         base_pos = self.data.qpos[:3]
+        robot_x = base_pos[0]
+        robot_z = base_pos[2]
         
-        # 1. Forward progress reward
-        forward_progress = base_pos[0] - self.initial_base_pos[0]
-        forward_reward = forward_progress * 1.0
+        # Update walls cleared count
+        old_walls_cleared = self.walls_cleared
+        while (self.walls_cleared < len(self.wall_positions) and 
+               robot_x > self.wall_positions[self.walls_cleared] + 0.02):  # Past the wall
+            self.walls_cleared += 1
+        
+        # 1. Forward progress reward (normalized by total distance)
+        total_distance = self.target_pos[0] - self.initial_base_pos[0]
+        forward_progress = (robot_x - self.initial_base_pos[0]) / total_distance
+        forward_reward = forward_progress * 2.0
         reward += forward_reward
         info["forward_reward"] = forward_reward
         
-        # 2. Height maintenance (penalize falling)
-        height = base_pos[2]
-        target_height = 0.5
-        height_penalty = -2.0 * max(0, target_height - height)
+        # 2. Wall clearance bonus (big reward for each wall cleared)
+        walls_just_cleared = self.walls_cleared - old_walls_cleared
+        wall_bonus = walls_just_cleared * 10.0
+        reward += wall_bonus
+        info["wall_bonus"] = wall_bonus
+        
+        # 3. Height reward when near walls (encourage climbing)
+        if self.walls_cleared < len(self.wall_positions):
+            next_wall_x = self.wall_positions[self.walls_cleared]
+            dist_to_wall = abs(robot_x - next_wall_x)
+            if dist_to_wall < 0.1:  # Close to wall
+                # Reward height when near wall (need to be above 30cm to clear)
+                height_reward = 2.0 * max(0, robot_z - 0.3) if robot_z > 0.2 else 0
+                reward += height_reward
+                info["height_reward"] = height_reward
+            else:
+                info["height_reward"] = 0.0
+        else:
+            info["height_reward"] = 0.0
+        
+        # 4. Height maintenance (don't fall, but don't need to stay too high)
+        min_height = 0.05
+        height_penalty = -5.0 * max(0, min_height - robot_z)
         reward += height_penalty
         info["height_penalty"] = height_penalty
         
-        # 3. Energy efficiency (penalize large actions)
-        action_cost = -0.01 * np.sum(np.square(self.data.ctrl))
+        # 5. Energy efficiency (penalize large actions)
+        action_cost = -0.005 * np.sum(np.square(self.data.ctrl))
         reward += action_cost
         info["action_cost"] = action_cost
         
-        # 4. Velocity reward (encourage movement)
-        velocity_reward = 0.1 * self.data.qvel[0]  # Forward velocity
+        # 6. Velocity reward (encourage forward movement)
+        velocity_reward = 0.2 * max(0, self.data.qvel[0])  # Forward velocity only
         reward += velocity_reward
         info["velocity_reward"] = velocity_reward
         
-        # 5. Distance to target bar (proximity reward)
-        if len(self.bar_positions) > 0:
-            target_bar = self.bar_positions[self.current_target_bar]
-            arm1_tip = self._get_site_pos("arm1_touch_site")
-            arm2_tip = self._get_site_pos("arm2_touch_site")
-            
-            dist1 = np.linalg.norm(arm1_tip - target_bar)
-            dist2 = np.linalg.norm(arm2_tip - target_bar)
-            min_dist = min(dist1, dist2)
-            
-            proximity_reward = 0.5 * np.exp(-2.0 * min_dist)
+        # 7. Target proximity reward (when all walls cleared)
+        if self.walls_cleared >= len(self.wall_positions):
+            dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
+            proximity_reward = 5.0 * np.exp(-2.0 * dist_to_target)
             reward += proximity_reward
             info["proximity_reward"] = proximity_reward
             
-            # Check if we reached the bar
-            if min_dist < 0.05:
-                reward += 5.0  # Bonus for reaching bar
-                info["bar_reached"] = True
-                self.current_target_bar = min(self.current_target_bar + 1, len(self.bar_positions) - 1)
+            # Huge bonus for reaching target
+            if dist_to_target < 0.1:
+                reward += 100.0
+                info["target_reached"] = True
+        else:
+            info["proximity_reward"] = 0.0
         
         return reward, info
     
@@ -320,14 +358,22 @@ class BrachiationEnv(gym.Env):
         base_pos = self.data.qpos[:3]
         
         # Terminate if robot falls too low
-        if base_pos[2] < 0.1:
+        if base_pos[2] < 0.02:
             return True
         
-        # Terminate if robot tilts too much
+        # Terminate if robot goes too far backwards
+        if base_pos[0] < self.initial_base_pos[0] - 0.3:
+            return True
+        
+        # Terminate if robot tilts too much (upside down)
         base_quat = self.data.qpos[3:7]
-        # Check if upside down (simple check via z-component of up vector)
         up_vec = self._quat_to_up_vec(base_quat)
-        if up_vec[2] < 0.0:
+        if up_vec[2] < -0.5:  # Significantly inverted
+            return True
+        
+        # Success termination - reached target
+        dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
+        if dist_to_target < 0.1 and self.walls_cleared >= len(self.wall_positions):
             return True
         
         return False

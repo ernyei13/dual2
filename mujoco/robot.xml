@@ -44,7 +44,9 @@
     
     <!-- ==================== BASE BODY ==================== -->
     <!-- st3215_servo_phosphobot - the central hub with both servos -->
-    <body name="base" pos="0 0 0.35">
+    <!-- Robot starts hanging from the first wall (wall1 at x=0.15, top at z=0.30) -->
+    <!-- Position robot so arm1 gripper can reach top of wall -->
+    <body name="base" pos="0.12 0 0.38" euler="0 0.3 0">
       <freejoint name="root"/>
       <inertial pos="-0.0403 -0.0907 0.1008" mass="0.082" diaginertia="4.6e-5 4.2e-5 5.2e-5"/>
       
@@ -146,15 +148,45 @@
       </body>
     </body>
     
-    <!-- ==================== GRASPING BARS ==================== -->
-    <body name="bar1" pos="0.2 0 0.45">
-      <geom name="bar1" type="cylinder" size="0.012 0.1" euler="1.5708 0 0" rgba="0.5 0.25 0.1 1"/>
+    <!-- ==================== WALL OBSTACLES ==================== -->
+    <!-- 10 walls: 30cm tall, 2cm thick, 15cm apart -->
+    <!-- Robot starts at x=-0.1, target at x=1.6 (after all walls) -->
+    
+    <body name="wall1" pos="0.15 0 0.15">
+      <geom name="wall1" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
     </body>
-    <body name="bar2" pos="0.4 0 0.5">
-      <geom name="bar2" type="cylinder" size="0.012 0.1" euler="1.5708 0 0" rgba="0.5 0.25 0.1 1"/>
+    <body name="wall2" pos="0.30 0 0.15">
+      <geom name="wall2" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
     </body>
-    <body name="bar3" pos="0.6 0 0.45">
-      <geom name="bar3" type="cylinder" size="0.012 0.1" euler="1.5708 0 0" rgba="0.5 0.25 0.1 1"/>
+    <body name="wall3" pos="0.45 0 0.15">
+      <geom name="wall3" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall4" pos="0.60 0 0.15">
+      <geom name="wall4" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall5" pos="0.75 0 0.15">
+      <geom name="wall5" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall6" pos="0.90 0 0.15">
+      <geom name="wall6" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall7" pos="1.05 0 0.15">
+      <geom name="wall7" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall8" pos="1.20 0 0.15">
+      <geom name="wall8" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall9" pos="1.35 0 0.15">
+      <geom name="wall9" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    <body name="wall10" pos="1.50 0 0.15">
+      <geom name="wall10" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+    </body>
+    
+    <!-- Target marker (goal position after all walls) -->
+    <body name="target" pos="1.7 0 0.05">
+      <geom name="target" type="cylinder" size="0.08 0.01" rgba="0.2 0.8 0.2 0.8" contype="0" conaffinity="0"/>
+      <site name="target_site" pos="0 0 0.02" size="0.05" rgba="0 1 0 0.5"/>
     </body>
   </worldbody>
 
@@ -199,4 +231,11 @@
     <exclude body1="arm2_wrist_pitch" body2="arm2_wrist_roll"/>
     <exclude body1="arm2_wrist_roll" body2="arm2_gripper"/>
   </contact>
+
+  <!-- Initial pose: hanging from first wall with arm1 gripper -->
+  <keyframe>
+    <key name="hanging" 
+         qpos="0.12 0 0.38 0.988 0 0.149 0 -1.2 1.5 -1.5 0.5 -0.8 0.0 1.0 0.0"
+         ctrl="0 0 0 0 -0.8 0 0 0"/>
+  </keyframe>
 </mujoco>
