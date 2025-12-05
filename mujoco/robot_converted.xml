@@ -1,0 +1,92 @@
+<mujoco model="dual2">
+  <compiler angle="radian"/>
+
+  <asset>
+    <mesh name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35" content_type="model/stl" file="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+    <mesh name="sts3215_servo" content_type="model/stl" file="sts3215_servo.stl"/>
+    <mesh name="driven_horn" content_type="model/stl" file="driven_horn.stl"/>
+    <mesh name="passive_horn" content_type="model/stl" file="passive_horn.stl"/>
+    <mesh name="so_arm100_08k_116_square" content_type="model/stl" file="so_arm100_08k_116_square.stl"/>
+    <mesh name="so_arm100_08k_mirror" content_type="model/stl" file="so_arm100_08k_mirror.stl"/>
+    <mesh name="so_arm100_08k_mirror__2" content_type="model/stl" file="so_arm100_08k_mirror__2.stl"/>
+    <mesh name="wrist_roll_pitch_08i" content_type="model/stl" file="wrist_roll_pitch_08i.stl"/>
+    <mesh name="wrist_roll_08c" content_type="model/stl" file="wrist_roll_08c.stl"/>
+    <mesh name="moving_jaw_08d" content_type="model/stl" file="moving_jaw_08d.stl"/>
+  </asset>
+
+  <worldbody>
+    <geom pos="-0.0751771 -0.100049 0.0826237" quat="0.10723 0.45295 -0.54299 -0.698928" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+    <geom pos="-0.0528391 -0.105496 0.0890825" quat="0.396108 0.24446 0.110267 -0.878168" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+    <geom pos="-0.0528391 -0.105496 0.0890825" quat="0.396108 0.24446 0.110267 -0.878168" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+    <geom pos="-0.0466544 -0.125234 0.0826237" quat="0.396108 0.24446 0.110267 -0.878168" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+    <geom pos="-0.00676049 -0.0800519 0.119" quat="-0.110266 0.878168 0.396108 0.244461" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+    <geom pos="-0.0352832 -0.0548674 0.119" quat="0.698928 -0.542989 -0.452951 0.107231" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+    <geom pos="-0.027112 -0.076359 0.112541" quat="-0.110266 0.878168 0.396108 0.244461" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+    <geom pos="-0.027112 -0.076359 0.112541" quat="-0.110266 0.878168 0.396108 0.244461" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+    <body name="so_arm100_08k_116_square" pos="-0.0340463 -0.0559595 0.119" quat="0.694354 0.359369 0.608978 -0.133685">
+      <inertial pos="-0.0692389 -0.00301229 0.0197206" quat="0.475865 0.474137 0.522165 0.525443" mass="0.198604" diaginertia="0.00036564 0.000313285 9.33286e-05"/>
+      <joint name="Revolute 2" pos="0 0 0" axis="0 0 1" range="-2.94151 0.200086" actuatorfrcrange="-10 10"/>
+      <geom pos="-0.065085 0.012 0.0197" quat="0.707105 0.707108 0 0" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="so_arm100_08k_116_square"/>
+      <geom pos="-0.11257 -0.028 0.0379" quat="0.499998 0.5 -0.500002 -0.5" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+      <geom pos="-0.11257 -0.028 -0.00015" quat="9.38184e-07 -0.707105 0.707108 -9.38188e-07" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+      <geom pos="-0.11257 -0.0155 0.0202" quat="0.499998 0.5 -0.500002 -0.5" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+      <geom pos="-0.11257 -0.0155 0.0202" quat="0.499998 0.5 -0.500002 -0.5" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+      <body name="so_arm100_08k_mirror" pos="-0.11257 -0.028 0.0015" quat="1 0 0 3.01201e-09">
+        <inertial pos="-0.0758873 0.0012846 0.0147496" quat="0.477269 0.542047 0.516114 0.460463" mass="0.18055" diaginertia="0.000327255 0.000287952 6.19217e-05"/>
+        <joint name="Revolute 3" pos="0 0 0" axis="0 0 1" range="-6.02402e-09 3.14159" actuatorfrcrange="-10 10"/>
+        <geom pos="-0.0648499 -0.032 0.0182" quat="0.707105 0.707108 0 0" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="so_arm100_08k_mirror"/>
+        <geom pos="-0.0648499 -0.032 0.0184" quat="0.707105 0.707108 0 0" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="so_arm100_08k_mirror__2"/>
+        <geom pos="-0.1349 0.0052 0.0363" quat="9.38184e-07 9.38187e-07 -0.707108 -0.707105" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+        <geom pos="-0.1349 0.0052 -0.00175" quat="2.17347e-12 -1.32679e-06 -1 1.32679e-06" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+        <geom pos="-0.1224 0.0052 0.0186" quat="9.38184e-07 9.38187e-07 -0.707108 -0.707105" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+        <geom pos="-0.1224 0.0052 0.0186" quat="9.38184e-07 9.38187e-07 -0.707108 -0.707105" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+        <body name="wrist_roll_pitch_08i" pos="-0.1349 0.0052 -0.0001" quat="0.664778 0 0 -0.747041">
+          <inertial pos="0.0348768 2.4895e-05 0.0103283" quat="0.659112 -0.259442 -0.258434 0.656866" mass="0.0789518" diaginertia="4.97311e-05 3.37971e-05 2.6432e-05"/>
+          <joint name="Revolute 4" pos="0 0 0" axis="0 0 1" range="-3.02519 0.116402" actuatorfrcrange="-10 10"/>
+          <geom pos="0.028 0 0.0181" quat="0.499998 0.5 0.5 -0.500002" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="wrist_roll_pitch_08i"/>
+          <geom pos="0.0247 0 0.0181" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+          <geom pos="0.06275 0 0.0181" quat="9.38184e-07 -0.707105 -9.38187e-07 -0.707108" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+          <geom pos="0.0424 0 0.0056" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+          <geom pos="0.0424 0 0.0056" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+          <body name="wrist_roll_08c" pos="0.0611 0 0.0181" quat="0.65593 0.264111 -0.655932 -0.264111">
+            <inertial pos="-0.00588121 0.000485423 -0.0272358" quat="0.649924 0.235394 0.235171 0.683289" mass="0.112045" diaginertia="7.48277e-05 6.46447e-05 3.99649e-05"/>
+            <joint name="Revolute 5" pos="0 0 0" axis="0 0 1" range="-0.805218 2.33638" actuatorfrcrange="-10 10"/>
+            <geom quat="0.707105 0.707108 0 0" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="wrist_roll_08c"/>
+            <geom pos="0.0198 -0.0178 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+            <geom pos="0.0198 0.02025 -0.023625" quat="0.707105 -0.707108 0 0" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+            <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+            <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+            <body name="moving_jaw_08d" pos="0.0198 0.0186 -0.023625" quat="0.525396 0.525398 -0.473241 0.473243">
+              <inertial pos="-0.00739035 -0.0295297 0.0192843" quat="0.689904 0.712368 -0.0928179 -0.0891538" mass="0.0252688" diaginertia="1.38563e-05 1.12152e-05 3.72291e-06"/>
+              <joint name="Revolute 6" pos="0 0 0" axis="0 0 1" range="-1.46644 0.104359" actuatorfrcrange="-10 10"/>
+              <geom pos="0 0 0.0189" quat="0.70385 -0.703853 0.0677732 -0.067773" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="moving_jaw_08d"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="wrist_roll_pitch_08i_2" pos="-0.0739402 -0.101141 0.0826237" quat="0.510736 -0.0285358 0.706532 -0.489027">
+      <inertial pos="0.0348768 2.4895e-05 0.0103283" quat="0.659112 -0.259442 -0.258434 0.656866" mass="0.0789518" diaginertia="4.97311e-05 3.37971e-05 2.6432e-05"/>
+      <joint name="Revolute 4 (1)" pos="0 0 0" axis="0 0 1" range="-1.79454 1.34706" actuatorfrcrange="-10 10"/>
+      <geom pos="0.0247 0 0.0181" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+      <geom pos="0.06275 0 0.0181" quat="9.38184e-07 -0.707105 -9.38187e-07 -0.707108" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+      <geom pos="0.0424 0 0.0056" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+      <geom pos="0.0424 0 0.0056" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+      <geom pos="0.028 0 0.0181" quat="0.499998 0.5 0.5 -0.500002" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="wrist_roll_pitch_08i"/>
+      <body name="passive_horn" pos="0.0611 0 0.0181" quat="0.499998 0.5 -0.500002 -0.5">
+        <inertial pos="-0.00588121 0.000485423 -0.0272358" quat="0.649924 0.235394 0.235171 0.683289" mass="0.112045" diaginertia="7.48277e-05 6.46447e-05 3.99649e-05"/>
+        <joint name="Revolute 5 (1)" pos="0 0 0" axis="0 0 1" range="0 3.14159" actuatorfrcrange="-10 10"/>
+        <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="driven_horn"/>
+        <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.301961 0.301961 0.301961 1" mesh="sts3215_servo"/>
+        <geom quat="0.707105 0.707108 0 0" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="wrist_roll_08c"/>
+        <geom pos="0.0198 0.02025 -0.023625" quat="0.707105 -0.707108 0 0" type="mesh" rgba="0.603922 0.647059 0.686275 1" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
+        <geom pos="0.0198 -0.0178 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" rgba="0.917647 0.917647 0.917647 1" mesh="passive_horn"/>
+        <body name="moving_jaw_08d_2" pos="0.0198 0.0186 -0.023625" quat="0.644246 0.644248 -0.291454 0.291455">
+          <inertial pos="-0.00739035 -0.0295297 0.0192843" quat="0.689904 0.712368 -0.0928179 -0.0891538" mass="0.0252688" diaginertia="1.38563e-05 1.12152e-05 3.72291e-06"/>
+          <joint name="Revolute 6 (1)" pos="0 0 0" axis="0 0 1" range="-0.849688 0.721109" actuatorfrcrange="-10 10"/>
+          <geom pos="0 0 0.0189" quat="0.70385 -0.703853 0.0677732 -0.067773" type="mesh" rgba="0.329412 0.788235 0.113725 1" mesh="moving_jaw_08d"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

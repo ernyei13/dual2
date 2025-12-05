@@ -1,0 +1,797 @@
+<?xml version="1.0" ?>
+<!-- Generated using onshape-to-robot -->
+<!-- Onshape document_id: a89a7f8c6687260d76fc2734 -->
+<robot name="dual2">
+  <!-- Link st3215_servo_phosphobot -->
+  <link name="st3215_servo_phosphobot">
+    <inertial>
+      <origin xyz="-0.0402741 -0.090664 0.100812" rpy="0 0 0"/>
+      <mass value="0.0817231"/>
+      <inertia ixx="4.64491e-05" ixy="-1.73489e-05" ixz="-1.58371e-05" iyy="4.2119e-05" iyz="-1.79363e-05" izz="5.20065e-05"/>
+    </inertial>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35 -->
+    <visual>
+      <origin xyz="-0.0751771 -0.100049 0.0826237" rpy="1.5708 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0751771 -0.100049 0.0826237" rpy="1.5708 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo -->
+    <visual>
+      <origin xyz="-0.0528391 -0.105496 0.0890825" rpy="3.04316e-16 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0528391 -0.105496 0.0890825" rpy="3.04316e-16 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn -->
+    <visual>
+      <origin xyz="-0.0528391 -0.105496 0.0890825" rpy="-1.80994e-16 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0528391 -0.105496 0.0890825" rpy="-1.80994e-16 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn -->
+    <visual>
+      <origin xyz="-0.0466544 -0.125234 0.0826237" rpy="1.92821e-15 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0466544 -0.125234 0.0826237" rpy="1.92821e-15 0.543003 -2.29412"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_2 -->
+    <visual>
+      <origin xyz="-0.00676049 -0.0800519 0.119" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_2_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.00676049 -0.0800519 0.119" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_2 -->
+    <visual>
+      <origin xyz="-0.0352832 -0.0548674 0.119" rpy="-1.5708 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_2_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0352832 -0.0548674 0.119" rpy="-1.5708 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_2 -->
+    <visual>
+      <origin xyz="-0.027112 -0.076359 0.112541" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_2_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.027112 -0.076359 0.112541" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_2 -->
+    <visual>
+      <origin xyz="-0.027112 -0.076359 0.112541" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_2_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.027112 -0.076359 0.112541" rpy="3.14159 -0.543003 0.847474"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link so_arm100_08k_116_square -->
+  <link name="so_arm100_08k_116_square">
+    <inertial>
+      <origin xyz="-0.0692389 -0.00301229 0.0197206" rpy="0 0 0"/>
+      <mass value="0.198604"/>
+      <inertia ixx="9.59222e-05" ixy="-2.64197e-05" ixz="-1.11797e-06" iyy="0.000363052" iyz="-4.08932e-08" izz="0.000313279"/>
+    </inertial>
+    <!-- Part so_arm100_08k_116_square -->
+    <visual>
+      <origin xyz="-0.065085 0.012 0.0197" rpy="1.5708 -0 -5.55112e-17"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_116_square.stl"/>
+      </geometry>
+      <material name="so_arm100_08k_116_square_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.065085 0.012 0.0197" rpy="1.5708 -0 -5.55112e-17"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_116_square.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_3 -->
+    <visual>
+      <origin xyz="-0.11257 -0.028 0.0379" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_3_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.11257 -0.028 0.0379" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_3 -->
+    <visual>
+      <origin xyz="-0.11257 -0.028 -0.00015" rpy="-3.14159 -1.04222e-12 -1.5708"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_3_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.11257 -0.028 -0.00015" rpy="-3.14159 -1.04222e-12 -1.5708"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_3 -->
+    <visual>
+      <origin xyz="-0.11257 -0.0155 0.0202" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_3_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.11257 -0.0155 0.0202" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_3 -->
+    <visual>
+      <origin xyz="-0.11257 -0.0155 0.0202" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_3_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.11257 -0.0155 0.0202" rpy="1.5708 -2.22045e-16 -1.5708"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link so_arm100_08k_mirror -->
+  <link name="so_arm100_08k_mirror">
+    <inertial>
+      <origin xyz="-0.0758873 0.0012846 0.0147496" rpy="0 0 0"/>
+      <mass value="0.18055"/>
+      <inertia ixx="6.5671e-05" ixy="1.11346e-05" ixz="2.69977e-05" iyy="0.000326779" iyz="-8.88954e-07" izz="0.000284678"/>
+    </inertial>
+    <!-- Part so_arm100_08k_mirror -->
+    <visual>
+      <origin xyz="-0.0648499 -0.032 0.0182" rpy="1.5708 -5.55112e-17 5.55112e-17"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_mirror.stl"/>
+      </geometry>
+      <material name="so_arm100_08k_mirror_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0648499 -0.032 0.0182" rpy="1.5708 -5.55112e-17 5.55112e-17"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_mirror.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part so_arm100_08k_mirror_2 -->
+    <visual>
+      <origin xyz="-0.0648499 -0.032 0.0184" rpy="1.5708 5.55112e-16 2.498e-16"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_mirror__2.stl"/>
+      </geometry>
+      <material name="so_arm100_08k_mirror_2_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.0648499 -0.032 0.0184" rpy="1.5708 5.55112e-16 2.498e-16"/>
+      <geometry>
+        <mesh filename="so_arm100_08k_mirror__2.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_4 -->
+    <visual>
+      <origin xyz="-0.1349 0.0052 0.0363" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_4_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.1349 0.0052 0.0363" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_4 -->
+    <visual>
+      <origin xyz="-0.1349 0.0052 -0.00175" rpy="-3.14159 -8.26172e-13 3.14159"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_4_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.1349 0.0052 -0.00175" rpy="-3.14159 -8.26172e-13 3.14159"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_4 -->
+    <visual>
+      <origin xyz="-0.1224 0.0052 0.0186" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_4_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.1224 0.0052 0.0186" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_4 -->
+    <visual>
+      <origin xyz="-0.1224 0.0052 0.0186" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_4_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-0.1224 0.0052 0.0186" rpy="1.5708 -7.21645e-16 -3.14159"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link wrist_roll_pitch_08i -->
+  <link name="wrist_roll_pitch_08i">
+    <inertial>
+      <origin xyz="0.0348768 2.4895e-05 0.0103283" rpy="0 0 0"/>
+      <mass value="0.0789518"/>
+      <inertia ixx="3.03765e-05" ixy="6.79159e-08" ixz="3.67321e-06" iyy="4.97309e-05" iyz="-1.60152e-08" izz="2.98528e-05"/>
+    </inertial>
+    <!-- Part wrist_roll_pitch_08i -->
+    <visual>
+      <origin xyz="0.028 -5.55112e-17 0.0181" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="wrist_roll_pitch_08i.stl"/>
+      </geometry>
+      <material name="wrist_roll_pitch_08i_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.028 -5.55112e-17 0.0181" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="wrist_roll_pitch_08i.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_5 -->
+    <visual>
+      <origin xyz="0.0247 1.08247e-14 0.0181" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_5_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0247 1.08247e-14 0.0181" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_5 -->
+    <visual>
+      <origin xyz="0.06275 -9.27036e-15 0.0181" rpy="-3.14159 -1.5708 0"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_5_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.06275 -9.27036e-15 0.0181" rpy="-3.14159 -1.5708 0"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_5 -->
+    <visual>
+      <origin xyz="0.0424 -5.55112e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_5_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0424 -5.55112e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_5 -->
+    <visual>
+      <origin xyz="0.0424 -5.55112e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_5_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0424 -5.55112e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link wrist_roll_08c -->
+  <link name="wrist_roll_08c">
+    <inertial>
+      <origin xyz="-0.00588121 0.000485423 -0.0272358" rpy="0 0 0"/>
+      <mass value="0.112045"/>
+      <inertia ixx="5.4951e-05" ixy="-6.89891e-07" ixz="-1.20621e-05" iyy="7.47992e-05" iyz="-1.33251e-07" izz="4.96872e-05"/>
+    </inertial>
+    <!-- Part wrist_roll_08c -->
+    <visual>
+      <origin xyz="0 0 2.42861e-17" rpy="1.5708 -5.55112e-17 -2.77556e-17"/>
+      <geometry>
+        <mesh filename="wrist_roll_08c.stl"/>
+      </geometry>
+      <material name="wrist_roll_08c_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 2.42861e-17" rpy="1.5708 -5.55112e-17 -2.77556e-17"/>
+      <geometry>
+        <mesh filename="wrist_roll_08c.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_6 -->
+    <visual>
+      <origin xyz="0.0198 -0.0178 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_6_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0198 -0.0178 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_6 -->
+    <visual>
+      <origin xyz="0.0198 0.02025 -0.023625" rpy="-1.5708 -6.92335e-13 -1.66561e-13"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_6_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0198 0.02025 -0.023625" rpy="-1.5708 -6.92335e-13 -1.66561e-13"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_6 -->
+    <visual>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_6_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_6 -->
+    <visual>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_6_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 5.55112e-17 6.38378e-16"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link moving_jaw_08d -->
+  <link name="moving_jaw_08d">
+    <inertial>
+      <origin xyz="-0.00739035 -0.0295297 0.0192843" rpy="0 0 0"/>
+      <mass value="0.0252688"/>
+      <inertia ixx="1.31967e-05" ixy="-2.4988e-06" ixz="-5.87979e-08" iyy="4.39028e-06" iyz="-2.33616e-07" izz="1.12075e-05"/>
+    </inertial>
+    <!-- Part moving_jaw_08d -->
+    <visual>
+      <origin xyz="-1.9082e-17 -2.77556e-17 0.0189" rpy="-1.5708 -2.77556e-17 -0.191986"/>
+      <geometry>
+        <mesh filename="moving_jaw_08d.stl"/>
+      </geometry>
+      <material name="moving_jaw_08d_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-1.9082e-17 -2.77556e-17 0.0189" rpy="-1.5708 -2.77556e-17 -0.191986"/>
+      <geometry>
+        <mesh filename="moving_jaw_08d.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Joint from wrist_roll_08c to moving_jaw_08d -->
+  <joint name="Revolute 6" type="revolute">
+    <origin xyz="0.0198 0.0186 -0.023625" rpy="1.5708 -1.46644 -3.27463e-13"/>
+    <parent link="wrist_roll_08c"/>
+    <child link="moving_jaw_08d"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1.46644" upper="0.104359"/>
+  </joint>
+  <!-- Joint from wrist_roll_pitch_08i to wrist_roll_08c -->
+  <joint name="Revolute 5" type="revolute">
+    <origin xyz="0.0611 1.11022e-16 0.0181" rpy="1.5708 -0.805218 -1.5708"/>
+    <parent link="wrist_roll_pitch_08i"/>
+    <child link="wrist_roll_08c"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-0.805218" upper="2.33638"/>
+  </joint>
+  <!-- Joint from so_arm100_08k_mirror to wrist_roll_pitch_08i -->
+  <joint name="Revolute 4" type="revolute">
+    <origin xyz="-0.1349 0.0052 -0.0001" rpy="2.98372e-15 1.38778e-15 -1.6872"/>
+    <parent link="so_arm100_08k_mirror"/>
+    <child link="wrist_roll_pitch_08i"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-3.02519" upper="0.116402"/>
+  </joint>
+  <!-- Joint from so_arm100_08k_116_square to so_arm100_08k_mirror -->
+  <joint name="Revolute 3" type="revolute">
+    <origin xyz="-0.11257 -0.028 0.0015" rpy="4.27436e-15 3.33067e-16 6.02402e-09"/>
+    <parent link="so_arm100_08k_116_square"/>
+    <child link="so_arm100_08k_mirror"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-6.02402e-09" upper="3.14159"/>
+  </joint>
+  <!-- Joint from st3215_servo_phosphobot to so_arm100_08k_116_square -->
+  <joint name="Revolute 2" type="revolute">
+    <origin xyz="-0.0340463 -0.0559595 0.119" rpy="1.5708 1.22788 0.847474"/>
+    <parent link="st3215_servo_phosphobot"/>
+    <child link="so_arm100_08k_116_square"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-2.94151" upper="0.200086"/>
+  </joint>
+  <!-- Link wrist_roll_pitch_08i_2 -->
+  <link name="wrist_roll_pitch_08i_2">
+    <inertial>
+      <origin xyz="0.0348768 2.4895e-05 0.0103283" rpy="0 0 0"/>
+      <mass value="0.0789518"/>
+      <inertia ixx="3.03765e-05" ixy="6.79159e-08" ixz="3.67321e-06" iyy="4.97309e-05" iyz="-1.60152e-08" izz="2.98528e-05"/>
+    </inertial>
+    <!-- Part passive_horn_7 -->
+    <visual>
+      <origin xyz="0.0247 -6.93889e-17 0.0181" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_7_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0247 -6.93889e-17 0.0181" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_7 -->
+    <visual>
+      <origin xyz="0.06275 -6.93889e-17 0.0181" rpy="-3.14159 -1.5708 0"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_7_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.06275 -6.93889e-17 0.0181" rpy="-3.14159 -1.5708 0"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part driven_horn_7 -->
+    <visual>
+      <origin xyz="0.0424 -9.71445e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_7_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0424 -9.71445e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_7 -->
+    <visual>
+      <origin xyz="0.0424 -8.32667e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_7_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0424 -8.32667e-17 0.0056" rpy="1.5708 -1.5708 0"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part wrist_roll_pitch_08i_2 -->
+    <visual>
+      <origin xyz="0.028 0 0.0181" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="wrist_roll_pitch_08i.stl"/>
+      </geometry>
+      <material name="wrist_roll_pitch_08i_2_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.028 0 0.0181" rpy="1.5708 1.5708 0"/>
+      <geometry>
+        <mesh filename="wrist_roll_pitch_08i.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link passive_horn -->
+  <link name="passive_horn">
+    <inertial>
+      <origin xyz="-0.00588121 0.000485423 -0.0272358" rpy="0 0 0"/>
+      <mass value="0.112045"/>
+      <inertia ixx="5.4951e-05" ixy="-6.89891e-07" ixz="-1.20621e-05" iyy="7.47992e-05" iyz="-1.33251e-07" izz="4.96872e-05"/>
+    </inertial>
+    <!-- Part driven_horn_8 -->
+    <visual>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 1.11022e-16 -7.32747e-15"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+      <material name="driven_horn_8_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 1.11022e-16 -7.32747e-15"/>
+      <geometry>
+        <mesh filename="driven_horn.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part sts3215_servo_8 -->
+    <visual>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 -0 -5.9952e-15"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+      <material name="sts3215_servo_8_material">
+        <color rgba="0.301961 0.301961 0.301961 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0073 -0.0001 -0.023625" rpy="3.14159 -0 -5.9952e-15"/>
+      <geometry>
+        <mesh filename="sts3215_servo.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part wrist_roll_08c_2 -->
+    <visual>
+      <origin xyz="-2.77556e-17 0 5.20417e-18" rpy="1.5708 5.55112e-17 -5.55112e-17"/>
+      <geometry>
+        <mesh filename="wrist_roll_08c.stl"/>
+      </geometry>
+      <material name="wrist_roll_08c_2_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-2.77556e-17 0 5.20417e-18" rpy="1.5708 5.55112e-17 -5.55112e-17"/>
+      <geometry>
+        <mesh filename="wrist_roll_08c.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_8 -->
+    <visual>
+      <origin xyz="0.0198 0.02025 -0.023625" rpy="-1.5708 -0 -4.10783e-15"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+      <material name="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35_8_material">
+        <color rgba="0.603922 0.647059 0.686275 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0198 0.02025 -0.023625" rpy="-1.5708 -0 -4.10783e-15"/>
+      <geometry>
+        <mesh filename="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35.stl"/>
+      </geometry>
+    </collision>
+    <!-- Part passive_horn_8 -->
+    <visual>
+      <origin xyz="0.0198 -0.0178 -0.023625" rpy="3.14159 5.55112e-17 -6.43929e-15"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+      <material name="passive_horn_8_material">
+        <color rgba="0.917647 0.917647 0.917647 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0.0198 -0.0178 -0.023625" rpy="3.14159 5.55112e-17 -6.43929e-15"/>
+      <geometry>
+        <mesh filename="passive_horn.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Link moving_jaw_08d_2 -->
+  <link name="moving_jaw_08d_2">
+    <inertial>
+      <origin xyz="-0.00739035 -0.0295297 0.0192843" rpy="0 0 0"/>
+      <mass value="0.0252688"/>
+      <inertia ixx="1.31967e-05" ixy="-2.4988e-06" ixz="-5.87979e-08" iyy="4.39028e-06" iyz="-2.33616e-07" izz="1.12075e-05"/>
+    </inertial>
+    <!-- Part moving_jaw_08d_2 -->
+    <visual>
+      <origin xyz="0 -1.38778e-17 0.0189" rpy="-1.5708 -6.93889e-18 -0.191986"/>
+      <geometry>
+        <mesh filename="moving_jaw_08d.stl"/>
+      </geometry>
+      <material name="moving_jaw_08d_2_material">
+        <color rgba="0.329412 0.788235 0.113725 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 -1.38778e-17 0.0189" rpy="-1.5708 -6.93889e-18 -0.191986"/>
+      <geometry>
+        <mesh filename="moving_jaw_08d.stl"/>
+      </geometry>
+    </collision>
+  </link>
+  <!-- Joint from passive_horn to moving_jaw_08d_2 -->
+  <joint name="Revolute 6 (1)" type="revolute">
+    <origin xyz="0.0198 0.0186 -0.023625" rpy="1.5708 -0.849688 4.67695e-15"/>
+    <parent link="passive_horn"/>
+    <child link="moving_jaw_08d_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-0.849688" upper="0.721109"/>
+  </joint>
+  <!-- Joint from wrist_roll_pitch_08i_2 to passive_horn -->
+  <joint name="Revolute 5 (1)" type="revolute">
+    <origin xyz="0.0611 4.16334e-16 0.0181" rpy="1.5708 -3.15858e-14 -1.5708"/>
+    <parent link="wrist_roll_pitch_08i_2"/>
+    <child link="passive_horn"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1.95399e-14" upper="3.14159"/>
+  </joint>
+  <!-- Joint from st3215_servo_phosphobot to wrist_roll_pitch_08i_2 -->
+  <joint name="Revolute 4 (1)" type="revolute">
+    <origin xyz="-0.0739402 -0.101141 0.0826237" rpy="-1.5708 0.766742 -2.29412"/>
+    <parent link="st3215_servo_phosphobot"/>
+    <child link="wrist_roll_pitch_08i_2"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="10" lower="-1.79454" upper="1.34706"/>
+  </joint>
+</robot>
