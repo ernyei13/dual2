@@ -7,7 +7,7 @@
   
   <default>
     <joint armature="0.01" damping="0.5" limited="true"/>
-    <geom friction="1 0.5 0.01" condim="3" conaffinity="1" contype="1"/>
+    <geom friction="1.5 0.8 0.02" condim="4" conaffinity="1" contype="1"/>
     <position kp="50" kv="5"/>
   </default>
 
@@ -44,9 +44,9 @@
     
     <!-- ==================== BASE BODY ==================== -->
     <!-- st3215_servo_phosphobot - the central hub with both servos -->
-    <!-- Robot starts hanging from the first wall (wall1 at x=0.15, top at z=0.30) -->
-    <!-- Position robot so arm1 gripper can reach top of wall -->
-    <body name="base" pos="0.12 0 0.38" euler="0 0.3 0">
+    <!-- Robot grips wall1 top with arm1 gripper using friction only -->
+    <!-- Wall1 top at (0.15, 0, 0.30), position base so gripper reaches it -->
+    <body name="base" pos="0.0 0 0.35">
       <freejoint name="root"/>
       <inertial pos="-0.0403 -0.0907 0.1008" mass="0.082" diaginertia="4.6e-5 4.2e-5 5.2e-5"/>
       
@@ -154,6 +154,8 @@
     
     <body name="wall1" pos="0.15 0 0.15">
       <geom name="wall1" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
+      <!-- Grip bar on top of wall - cylindrical bar that gripper can wrap around -->
+      <geom name="wall1_bar" type="cylinder" pos="0 0 0.16" size="0.012 0.15" euler="1.5708 0 0" rgba="0.4 0.4 0.4 1" friction="2.0 0.8 0.02"/>
     </body>
     <body name="wall2" pos="0.30 0 0.15">
       <geom name="wall2" type="box" size="0.01 0.15 0.15" rgba="0.6 0.3 0.2 1"/>
@@ -192,16 +194,16 @@
 
   <actuator>
     <!-- Arm 1: 5 DOF -->
-    <position name="arm1_shoulder_act" joint="arm1_shoulder" kp="80"/>
-    <position name="arm1_elbow_act" joint="arm1_elbow" kp="60"/>
-    <position name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" kp="40"/>
-    <position name="arm1_wrist_roll_act" joint="arm1_wrist_roll" kp="30"/>
-    <position name="arm1_gripper_act" joint="arm1_gripper" kp="20"/>
+    <position name="arm1_shoulder_act" joint="arm1_shoulder" kp="100"/>
+    <position name="arm1_elbow_act" joint="arm1_elbow" kp="80"/>
+    <position name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" kp="60"/>
+    <position name="arm1_wrist_roll_act" joint="arm1_wrist_roll" kp="40"/>
+    <position name="arm1_gripper_act" joint="arm1_gripper" kp="100" kv="10"/>
     
     <!-- Arm 2: 3 DOF -->
-    <position name="arm2_shoulder_act" joint="arm2_shoulder" kp="60"/>
-    <position name="arm2_wrist_roll_act" joint="arm2_wrist_roll" kp="30"/>
-    <position name="arm2_gripper_act" joint="arm2_gripper" kp="20"/>
+    <position name="arm2_shoulder_act" joint="arm2_shoulder" kp="80"/>
+    <position name="arm2_wrist_roll_act" joint="arm2_wrist_roll" kp="40"/>
+    <position name="arm2_gripper_act" joint="arm2_gripper" kp="100" kv="10"/>
   </actuator>
 
   <sensor>
@@ -232,10 +234,13 @@
     <exclude body1="arm2_wrist_roll" body2="arm2_gripper"/>
   </contact>
 
-  <!-- Initial pose: hanging from first wall with arm1 gripper -->
+  <!-- Initial pose: robot gripping wall1 top with arm1, holding by friction -->
+  <!-- Wall1 top at (0.15, 0, 0.30). Arm1 extends to grip it firmly. -->
+  <!-- Joint order: arm1_shoulder, arm1_elbow, arm1_wrist_pitch, arm1_wrist_roll, arm1_gripper, arm2_shoulder, arm2_wrist_roll, arm2_gripper -->
+  <!-- Base behind wall, arm reaching forward to grip wall top -->
   <keyframe>
     <key name="hanging" 
-         qpos="0.12 0 0.38 0.988 0 0.149 0 -1.2 1.5 -1.5 0.5 -0.8 0.0 1.0 0.0"
-         ctrl="0 0 0 0 -0.8 0 0 0"/>
+         qpos="0.0 0 0.35 1 0 0 0 0.0 2.5 -0.3 0.0 -1.2 0.0 0.5 0.0"
+         ctrl="0.0 2.5 -0.3 0.0 -1.2 0.0 0.5 0.0"/>
   </keyframe>
 </mujoco>

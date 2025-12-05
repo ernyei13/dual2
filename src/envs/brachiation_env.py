@@ -224,11 +224,20 @@ class BrachiationEnv(gym.Env):
         if key_id >= 0:
             mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
         
-        # Add small random perturbation to joint positions only (not base)
+        # Ensure gripper is closed tight for grip
+        # ctrl[4] is arm1_gripper_act, set to -1.0 for max grip
+        self.data.ctrl[4] = -1.0
+        
+        # Add small random perturbation to joint positions only (not base or gripper)
         if self.np_random is not None:
-            noise = self.np_random.uniform(-0.02, 0.02, size=self.model.nq)
+            noise = self.np_random.uniform(-0.01, 0.01, size=self.model.nq)
             noise[:7] = 0  # Don't perturb base pose
+            noise[11] = 0  # Don't perturb gripper (arm1_gripper is joint 5, qpos index ~11)
             self.data.qpos[:] += noise
+        
+        # Step a few times to let gripper settle onto bar
+        for _ in range(50):
+            mujoco.mj_step(self.model, self.data)
         
         # Forward kinematics
         mujoco.mj_forward(self.model, self.data)
