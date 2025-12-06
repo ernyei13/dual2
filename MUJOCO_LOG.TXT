@@ -1,0 +1,3 @@
+Fri Dec  5 22:10:37 2025
+ERROR: mj_setKeyframe: keyframe index cannot be negative
+

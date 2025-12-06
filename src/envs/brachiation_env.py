@@ -54,6 +54,7 @@ class BrachiationEnv(gym.Env):
         render_mode: Optional[str] = None,
         max_episode_steps: int = 1000,
         control_freq: int = 50,
+        initial_keyframe: Optional[str] = "hanging",
     ):
         """
         Initialize the brachiation environment.
@@ -62,12 +63,14 @@ class BrachiationEnv(gym.Env):
             render_mode: "human" for interactive viewer, "rgb_array" for image output
             max_episode_steps: Maximum steps per episode
             control_freq: Control frequency in Hz
+            initial_keyframe: Name of the keyframe to load at reset, or None to skip
         """
         super().__init__()
         
         self.render_mode = render_mode
         self.max_episode_steps = max_episode_steps
         self.control_freq = control_freq
+        self.initial_keyframe = initial_keyframe
         
         # Load MuJoCo model
         model_path = Path(__file__).parent.parent.parent / "mujoco" / "robot.xml"
@@ -220,9 +223,14 @@ class BrachiationEnv(gym.Env):
         mujoco.mj_resetData(self.model, self.data)
         
         # Load the "hanging" keyframe if it exists
-        key_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "hanging")
-        if key_id >= 0:
-            mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+        if self.initial_keyframe is not None:
+            key_id = mujoco.mj_name2id(
+                self.model,
+                mujoco.mjtObj.mjOBJ_KEY,
+                self.initial_keyframe,
+            )
+            if key_id >= 0:
+                mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
         
         # Ensure gripper is closed tight for grip
         # ctrl[4] is arm1_gripper_act, set to -1.0 for max grip
@@ -296,6 +304,7 @@ class BrachiationEnv(gym.Env):
         base_pos = self.data.qpos[:3]
         robot_x = base_pos[0]
         robot_z = base_pos[2]
+        base_quat = self.data.qpos[3:7]
         
         # Update walls cleared count
         old_walls_cleared = self.walls_cleared
@@ -345,6 +354,17 @@ class BrachiationEnv(gym.Env):
         velocity_reward = 0.2 * max(0, self.data.qvel[0])  # Forward velocity only
         reward += velocity_reward
         info["velocity_reward"] = velocity_reward
+
+        # 8. Upright orientation bonus
+        up_vec = self._quat_to_up_vec(base_quat)
+        upright_bonus = max(0.0, up_vec[2]) * 2.0
+        reward += upright_bonus
+        info["upright_bonus"] = upright_bonus
+
+        # 9. Angular velocity penalty (encourage stability)
+        ang_vel_penalty = -0.1 * np.linalg.norm(self.data.qvel[3:6])
+        reward += ang_vel_penalty
+        info["ang_vel_penalty"] = ang_vel_penalty
         
         # 7. Target proximity reward (when all walls cleared)
         if self.walls_cleared >= len(self.wall_positions):

@@ -48,15 +48,28 @@ def run_viewer():
     
     print("\n=== MuJoCo Viewer Controls ===")
     print("  Mouse: Rotate/Pan/Zoom camera")
-    print("  Space: Pause/Resume simulation")
+    print("  Space: Pause/Resume simulation (starts paused)")
     print("  Backspace: Reset simulation")
     print("  Tab: Toggle visualization options")
     print("  ESC: Exit viewer")
     print("=" * 32)
     
-    with mujoco.viewer.launch_passive(model, data) as viewer:
+    paused = True
+
+    def _toggle_pause(key: int) -> None:
+        nonlocal paused
+        if key == mujoco.viewer.glfw.KEY_SPACE:
+            paused = not paused
+            print("Simulation resumed." if not paused else "Simulation paused.")
+
+    with mujoco.viewer.launch_passive(
+        model,
+        data,
+        key_callback=_toggle_pause,
+    ) as viewer:
         while viewer.is_running():
-            mujoco.mj_step(model, data)
+            if not paused:
+                mujoco.mj_step(model, data)
             viewer.sync()
 
 
@@ -110,7 +123,10 @@ def run_training(args):
     
     # Create environment factory
     def make_env():
-        return BrachiationEnv(render_mode="rgb_array" if args.headless else None)
+        return BrachiationEnv(
+            render_mode="rgb_array" if args.headless else None,
+            initial_keyframe="wall1_grip",
+        )
     
     # Create vectorized environment
     if args.num_envs > 1:
@@ -167,7 +183,10 @@ def run_evaluation(args):
     print(f"Loading model from {model_path}...")
     model = PPO.load(model_path)
     
-    env = BrachiationEnv(render_mode="human" if not args.headless else None)
+    env = BrachiationEnv(
+        render_mode="human" if not args.headless else None,
+        initial_keyframe="wall1_grip",
+    )
     
     print("Running evaluation...")
     total_rewards = []
