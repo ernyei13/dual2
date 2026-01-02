@@ -116,10 +116,10 @@ def run_training(args):
     """Run reinforcement learning training."""
     from src.envs.brachiation_env import BrachiationEnv
     from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecFrameStack
     from stable_baselines3.common.callbacks import CheckpointCallback
     
-    print("Starting PPO training...")
+    print("Starting PPO training (Improved)...")
     
     # Create environment factory
     def make_env():
@@ -129,41 +129,75 @@ def run_training(args):
         )
     
     # Create vectorized environment
+    # Using SubprocVecEnv for parallel execution is good, but let's ensure it's robust
     if args.num_envs > 1:
         env = SubprocVecEnv([make_env for _ in range(args.num_envs)])
     else:
         env = DummyVecEnv([make_env])
+        
+    # IMPORTANT: Normalize observations and rewards for PPO stability
+    # Clip observations to 10.0
+    env = VecNormalize(
+        env,
+        norm_obs=True,
+        norm_reward=True,
+        clip_obs=10.0,
+        gamma=0.995,
+    )
+    
+    # ADVANCED IMPROVEMENT: Frame Stacking
+    # Stack 4 frames to give temporal context (acceleration, jerk)
+    env = VecFrameStack(env, n_stack=4)
     
     # Setup callbacks
     checkpoint_callback = CheckpointCallback(
-        save_freq=10000,
+        save_freq=max(10000 // args.num_envs, 1), # Save every X steps per env
         save_path="./checkpoints/",
         name_prefix="brachiation_ppo"
     )
     
-    # Create PPO model
+    # Linear learning rate schedule
+    def linear_schedule(initial_value: float):
+        """
+        Linear learning rate schedule.
+        :param initial_value: Initial learning rate.
+        :return: schedule function.
+        """
+        def func(progress_remaining: float) -> float:
+            """
+            Progress will decrease from 1 (beginning) to 0.
+            :param progress_remaining:
+            :return: current learning rate
+            """
+            return progress_remaining * initial_value
+        return func
+
     model = PPO(
         "MlpPolicy",
         env,
         verbose=1,
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=64,
+        learning_rate=linear_schedule(3e-4), # Decay to 0
+        n_steps=4096, # Longer horizon for longer episodes
+        batch_size=1024, # Larger batch size for more stable gradients
         n_epochs=10,
-        gamma=0.99,
+        gamma=0.995, # Higher gamma for longer horizon
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.01,
+        ent_coef=0.005, # Reduce entropy slightly as training progresses
         tensorboard_log="./logs/tensorboard/",
         device="auto",
+        policy_kwargs=dict(net_arch=dict(pi=[256, 256], vf=[256, 256])), # Explicit network size
     )
     
-    print(f"Training for {args.total_timesteps} timesteps...")
+    print(f"Training for {args.total_timesteps} timesteps with {args.num_envs} environments...")
     model.learn(
         total_timesteps=args.total_timesteps,
         callback=checkpoint_callback,
         progress_bar=True,
     )
+    
+    # Save the normalized environment stats so evaluation works correctly!
+    env.save("./checkpoints/vec_normalize.pkl")
     
     # Save final model
     model.save("./checkpoints/brachiation_final")
@@ -174,39 +208,82 @@ def run_training(args):
 
 def run_evaluation(args):
     """Evaluate a trained model."""
-    from src.envs.brachiation_env import BrachiationEnv
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
     from stable_baselines3 import PPO
+    from src.envs.brachiation_env import BrachiationEnv
     import numpy as np
     
     model_path = args.model_path or "./checkpoints/brachiation_final"
+    vec_norm_path = "./checkpoints/vec_normalize.pkl"
     
     print(f"Loading model from {model_path}...")
     model = PPO.load(model_path)
     
-    env = BrachiationEnv(
-        render_mode="human" if not args.headless else None,
+    # Determine render mode
+    render_mode = "human"
+    if args.headless or args.record_video:
+        render_mode = "rgb_array"
+        
+    # We must wrap the env in VecNormalize and load stats to match training distribution
+    # We use a DummyVecEnv for evaluation
+    env = DummyVecEnv([lambda: BrachiationEnv(
+        render_mode=render_mode,
         initial_keyframe="wall1_grip",
-    )
+    )])
+    
+    if os.path.exists(vec_norm_path):
+        print(f"Loading normalization stats from {vec_norm_path}")
+        env = VecNormalize.load(vec_norm_path, env)
+        # Don't update stats during evaluation
+        env.training = False
+        env.norm_reward = False
+    else:
+        print("Warning: VecNormalize stats not found. Evaluation might be poor.")
+
+    # Also need FrameStack for evaluation if used in training
+    # Must be applied AFTER normalization (on top of it) to match training stack:
+    # Env -> Normalize -> FrameStack
+    env = VecFrameStack(env, n_stack=4)
     
     print("Running evaluation...")
     total_rewards = []
     
+    # Video recording setup
+    frames = []
+    record_video = args.record_video
+    
     for episode in range(args.eval_episodes):
-        obs, _ = env.reset()
+        obs = env.reset() # VecEnv reset returns just obs
         episode_reward = 0
         done = False
         
         while not done:
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            episode_reward += reward
-            done = terminated or truncated
+            # VecEnv step returns (obs, reward, done, info) - vectorized!
+            obs, reward, done, info = env.step(action)
+            episode_reward += reward[0]
+            
+            # Render frame if recording
+            if record_video and len(frames) < 1500: # Limit to ~30s at 50fps
+                # env.render() returns the frame in rgb_array mode
+                frames.append(env.render())
+                
+            # Done is an array of booleans in VecEnv
+            if done[0]:
+                break
         
         total_rewards.append(episode_reward)
         print(f"Episode {episode + 1}: Reward = {episode_reward:.2f}")
     
     print(f"\nMean reward over {args.eval_episodes} episodes: {np.mean(total_rewards):.2f}")
     env.close()
+    
+    if record_video and len(frames) > 0:
+        import imageio
+        output_path = "trained_model_demo.mp4"
+        print(f"Saving video to {output_path}...")
+        imageio.mimsave(output_path, frames, fps=50)
+        print("Video saved!")
 
 
 def main():
@@ -269,6 +346,12 @@ Examples:
         type=int,
         default=None,
         help="Random seed for reproducibility"
+    )
+    
+    parser.add_argument(
+        "--record-video",
+        action="store_true",
+        help="Record video of evaluation (saved to trained_model_demo.mp4)"
     )
     
     args = parser.parse_args()

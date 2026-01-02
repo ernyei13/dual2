@@ -52,7 +52,7 @@ class BrachiationEnv(gym.Env):
     def __init__(
         self,
         render_mode: Optional[str] = None,
-        max_episode_steps: int = 1000,
+        max_episode_steps: int = 2000, # Longer episodes
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
     ):
@@ -69,6 +69,7 @@ class BrachiationEnv(gym.Env):
         
         self.render_mode = render_mode
         self.max_episode_steps = max_episode_steps
+
         self.control_freq = control_freq
         self.initial_keyframe = initial_keyframe
         
@@ -110,6 +111,11 @@ class BrachiationEnv(gym.Env):
         # Episode tracking
         self.current_step = 0
         self.initial_base_pos = None
+        self.previous_action = None
+        
+        # Original masses for domain randomization
+        self.original_masses = self.model.body_mass.copy()
+
         
         # Viewer for rendering
         self.viewer = None
@@ -238,10 +244,50 @@ class BrachiationEnv(gym.Env):
         
         # Add small random perturbation to joint positions only (not base or gripper)
         if self.np_random is not None:
-            noise = self.np_random.uniform(-0.01, 0.01, size=self.model.nq)
-            noise[:7] = 0  # Don't perturb base pose
-            noise[11] = 0  # Don't perturb gripper (arm1_gripper is joint 5, qpos index ~11)
+            noise = self.np_random.uniform(-0.02, 0.02, size=self.model.nq)
+            # Apply noise to base position (x, y, z)
+            # Keep orientation (quaternion) stable or apply very small noise if desired
+            noise[3:7] = 0.0  # Keep orientation exact for stability
+            
+            # Don't perturb gripper (arm1_gripper is joint 5, qpos index ~11)
+            # Adjust index based on actual model structure if needed, assumig index 11 is correct from previous code
+            noise[11] = 0 
+            
             self.data.qpos[:] += noise
+
+        # DOMAIN RANDOMIZATION: Randomize link masses (robustness)
+        if self.np_random is not None:
+            # Vary mass by +/- 20%
+            random_mass_scale = self.np_random.uniform(0.8, 1.2, size=self.model.nbody)
+            self.model.body_mass[:] = self.original_masses * random_mass_scale
+
+        # Initialize previous action for smoothness calc
+        self.previous_action = np.zeros(self.n_actuators)
+
+
+        # CURRICULUM: Shift starting position closer to goal (x=1.2)
+        # Goal is at 1.7. Walls are every 0.15m.
+        # Shift by integer number of wall spacings to maintain grasp relative to wall
+        # 0.15 * 8 = 1.20
+        # This skips first 8 walls (indices 0-7)
+        # CURRICULUM: Shift starting position (Start further back)
+        # Goal is at 1.7. Walls are every 0.15m.
+        # Shift by integer number of wall spacings (0.15 * 4 = 0.60)
+        start_x_shift = 0.60
+        self.data.qpos[0] += start_x_shift
+        
+        # Determine how many walls we effectively cleared or skipped
+        # Walls are at 0.15, 0.30, ...
+        # If we start at 1.2, we differ from 0 by 1.2.
+        # Assuming original keyframe was at ~0 or grasping first wall?
+        # If orig was grasping wall at 0.15, new is grasping wall at 1.35?
+        # Let's assume the shift aligns with walls.
+        # We need to set walls_cleared correctly so we don't get "cleared" rewards instantly for past walls
+        # wall_positions = [0.15, 0.30, ..., 1.50]
+        # if robot is at 1.2, it is past 0.15...1.05 (7 walls).
+        # It is approaching 1.2? or on it?
+        # Let's set walls_cleared based on position in loop later.
+
         
         # Step a few times to let gripper settle onto bar
         for _ in range(50):
@@ -253,7 +299,12 @@ class BrachiationEnv(gym.Env):
         # Store initial position
         self.initial_base_pos = self.data.qpos[:3].copy()
         self.current_step = 0
+        
+        # Update walls_cleared based on starting position
         self.walls_cleared = 0
+        for w_pos in self.wall_positions:
+            if self.initial_base_pos[0] > w_pos + 0.02:
+                self.walls_cleared += 1
         
         obs = self._get_obs()
         info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": 0}
@@ -267,6 +318,16 @@ class BrachiationEnv(gym.Env):
         
         # Apply action to actuators
         self.data.ctrl[:] = action
+        
+        # Calculate smoothness penalty (before updating previous_action)
+        # Penalize large changes in action
+        if self.previous_action is not None:
+            action_diff = action - self.previous_action
+            self.smoothness_penalty = -0.1 * np.mean(np.square(action_diff))
+        else:
+            self.smoothness_penalty = 0.0
+            
+        self.previous_action = action.copy()
         
         # Step simulation
         for _ in range(self.frame_skip):
@@ -313,72 +374,80 @@ class BrachiationEnv(gym.Env):
             self.walls_cleared += 1
         
         # 1. Forward progress reward (normalized by total distance)
-        total_distance = self.target_pos[0] - self.initial_base_pos[0]
-        forward_progress = (robot_x - self.initial_base_pos[0]) / total_distance
-        forward_reward = forward_progress * 2.0
-        reward += forward_reward
-        info["forward_reward"] = forward_reward
+        # Scale to be roughly 1.0 per second for good speed
+        # total distance ~1.6m. If speed is 0.2m/s, we want reward ~1.0
+        # forward_velocity = self.data.qvel[0]
+        # reward += forward_velocity * 1.0
         
-        # 2. Wall clearance bonus (big reward for each wall cleared)
+        # Distance-based potential reward (more stable than velocity)
+        dist_to_go = self.target_pos[0] - robot_x
+        # Potential: closer is better (higher)
+        # Previous potential was -dist_to_go. Change = new - old
+        # But here we just use instantaneous progress component if we want, 
+        # but the previous implementation used absolute position difference.
+        # Let's use a simple velocity-based reward which is standard for locomotion
+        forward_vel = self.data.qvel[0]
+        reward += forward_vel * 1.0
+        info["forward_reward"] = forward_vel
+        
+        # 2. Wall clearance bonus (reduced magnitude)
         walls_just_cleared = self.walls_cleared - old_walls_cleared
-        wall_bonus = walls_just_cleared * 10.0
-        reward += wall_bonus
-        info["wall_bonus"] = wall_bonus
-        
-        # 3. Height reward when near walls (encourage climbing)
-        if self.walls_cleared < len(self.wall_positions):
-            next_wall_x = self.wall_positions[self.walls_cleared]
-            dist_to_wall = abs(robot_x - next_wall_x)
-            if dist_to_wall < 0.1:  # Close to wall
-                # Reward height when near wall (need to be above 30cm to clear)
-                height_reward = 2.0 * max(0, robot_z - 0.3) if robot_z > 0.2 else 0
-                reward += height_reward
-                info["height_reward"] = height_reward
-            else:
-                info["height_reward"] = 0.0
+        if walls_just_cleared > 0:
+            wall_bonus = 2.0  # Reduced from 10.0
+            reward += wall_bonus
+            info["wall_bonus"] = wall_bonus
         else:
-            info["height_reward"] = 0.0
+            info["wall_bonus"] = 0.0
         
-        # 4. Height maintenance (don't fall, but don't need to stay too high)
-        min_height = 0.05
-        height_penalty = -5.0 * max(0, min_height - robot_z)
-        reward += height_penalty
-        info["height_penalty"] = height_penalty
+        # 3. Height reward (simplified)
+        # Just encourage keeping the CG at a reasonable height, slightly higher than the bar?
+        # Bar is at ~? (Walls are 0.3m tall).
+        # We want the robot to swing, so height fluctuates.
+        # Maybe just penalize being too low (floor is 0).
+        # We already have a penalty for falling.
+        # Let's add a small bonus for being above a threshold (e.g. 0.25m) to encourage lifting
+        if robot_z > 0.25:
+            reward += 0.1
+        info["height_reward"] = 0.0 # Deprecated specific wall height logic
         
-        # 5. Energy efficiency (penalize large actions)
-        action_cost = -0.005 * np.sum(np.square(self.data.ctrl))
+        # 4. Height maintenance penalty (crisis)
+        # Penalize drastically if very close to floor to discourage falling
+        if robot_z < 0.1:
+            reward -= 0.1
+        
+        # 5. Energy efficiency (allow more torque, but penalize slightly)
+        action_cost = -0.01 * np.mean(np.square(self.data.ctrl)) # Mean is better than sum for variable act dims
         reward += action_cost
         info["action_cost"] = action_cost
         
-        # 6. Velocity reward (encourage forward movement)
-        velocity_reward = 0.2 * max(0, self.data.qvel[0])  # Forward velocity only
-        reward += velocity_reward
-        info["velocity_reward"] = velocity_reward
-
-        # 8. Upright orientation bonus
-        up_vec = self._quat_to_up_vec(base_quat)
-        upright_bonus = max(0.0, up_vec[2]) * 2.0
-        reward += upright_bonus
-        info["upright_bonus"] = upright_bonus
-
+        # 6. Smoothness penalty (encourage smooth motion)
         # 9. Angular velocity penalty (encourage stability)
         ang_vel_penalty = -0.1 * np.linalg.norm(self.data.qvel[3:6])
         reward += ang_vel_penalty
         info["ang_vel_penalty"] = ang_vel_penalty
         
-        # 7. Target proximity reward (when all walls cleared)
+        # 10. Action Smoothness (from step function)
+        if hasattr(self, 'smoothness_penalty'):
+            reward += self.smoothness_penalty
+            info["smoothness_penalty"] = self.smoothness_penalty
+        
+        # 8. Upright orientation bonus (keep base somewhat upright)
+        up_vec = self._quat_to_up_vec(base_quat)
+        # Reward alignment with Z axis
+        upright_reward = 0.1 * up_vec[2]
+        reward += upright_reward
+        info["upright_bonus"] = upright_reward
+
+        # 7. Target proximity reward (dense, terminal)
+        dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
         if self.walls_cleared >= len(self.wall_positions):
-            dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
-            proximity_reward = 5.0 * np.exp(-2.0 * dist_to_target)
-            reward += proximity_reward
-            info["proximity_reward"] = proximity_reward
+            # Dense reward for closing in on target
+            reward += (1.0 - np.tanh(dist_to_target)) * 0.1
             
-            # Huge bonus for reaching target
-            if dist_to_target < 0.1:
-                reward += 100.0
+            # Bonus for reaching target
+            if dist_to_target < 0.15:
+                reward += 10.0
                 info["target_reached"] = True
-        else:
-            info["proximity_reward"] = 0.0
         
         return reward, info
     
@@ -421,8 +490,8 @@ class BrachiationEnv(gym.Env):
         """Render the environment."""
         if self.render_mode == "human":
             if self.viewer is None:
-                import mujoco.viewer
-                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                from mujoco import viewer as mj_viewer
+                self.viewer = mj_viewer.launch_passive(self.model, self.data)
             self.viewer.sync()
             return None
         
@@ -449,7 +518,7 @@ def register_env():
     gym.register(
         id="Brachiation-v0",
         entry_point="src.envs.brachiation_env:BrachiationEnv",
-        max_episode_steps=1000,
+        max_episode_steps=2000,
     )
 
 

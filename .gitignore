@@ -13,3 +13,6 @@ venv/
 
 # OS
 .DS_Store
+
+checkpoints/
+logs/

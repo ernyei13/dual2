@@ -129,7 +129,8 @@ def record_video(output_path: str = "robot_demo.mp4", duration: float = 5.0, fps
     
     model = mujoco.MjModel.from_xml_path(get_model_path())
     data = mujoco.MjData(model)
-    renderer = mujoco.Renderer(model, height=720, width=1280)
+    # Reduced resolution to match default framebuffer limit
+    renderer = mujoco.Renderer(model, height=480, width=640)
     
     frames = []
     n_frames = int(duration * fps)
