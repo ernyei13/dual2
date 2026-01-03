@@ -126,6 +126,7 @@ def run_training(args):
         return BrachiationEnv(
             render_mode="rgb_array" if args.headless else None,
             initial_keyframe="wall1_grip",
+            task_mode=args.task,
         )
     
     # Create vectorized environment
@@ -229,6 +230,7 @@ def run_evaluation(args):
     env = DummyVecEnv([lambda: BrachiationEnv(
         render_mode=render_mode,
         initial_keyframe="wall1_grip",
+        task_mode=args.task,
     )])
     
     if os.path.exists(vec_norm_path):
@@ -348,11 +350,8 @@ Examples:
         help="Random seed for reproducibility"
     )
     
-    parser.add_argument(
-        "--record-video",
-        action="store_true",
-        help="Record video of evaluation (saved to trained_model_demo.mp4)"
-    )
+    parser.add_argument("--record-video", action="store_true", help="Record video during evaluation")
+    parser.add_argument("--task", type=str, default="traversal", choices=["traversal", "grasping"], help="Task to train (traversal or grasping)")
     
     args = parser.parse_args()
     

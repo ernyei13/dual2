@@ -55,6 +55,7 @@ class BrachiationEnv(gym.Env):
         max_episode_steps: int = 2000, # Longer episodes
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
+        task_mode: str = "traversal", # "traversal" or "grasping"
     ):
         """
         Initialize the brachiation environment.
@@ -64,12 +65,13 @@ class BrachiationEnv(gym.Env):
             max_episode_steps: Maximum steps per episode
             control_freq: Control frequency in Hz
             initial_keyframe: Name of the keyframe to load at reset, or None to skip
+            task_mode: Task to train ("traversal" or "grasping")
         """
         super().__init__()
         
         self.render_mode = render_mode
         self.max_episode_steps = max_episode_steps
-
+        self.task_mode = task_mode
         self.control_freq = control_freq
         self.initial_keyframe = initial_keyframe
         
@@ -147,8 +149,22 @@ class BrachiationEnv(gym.Env):
         # Fingertip positions: 6 (2 arms * 3)
         # Target position: 3
         # Distance to next wall: 1
-        # Walls cleared (normalized): 1
-        return 7 + 6 + 8 + 8 + 6 + 3 + 1 + 1
+        # Walls cleared normalized (1D)
+        # Hand to target wall vector (3D) -- NEW for Reaching Reward
+        return 7 + 6 + 8 + 8 + 6 + 3 + 1 + 1 + 3
+
+    def _find_target_wall_idx(self) -> int:
+        """Find the index of the wall we should be targeting."""
+        # If we are in grasping mode, we spawned near a random wall.
+        # We need to know WHICH wall that is.
+        # We can find the closest wall in front of us.
+        robot_x = self.data.qpos[0]
+        
+        # Simple heuristic: find nearest wall
+        # Only check walls within reasonable range
+        dists = np.abs(self.wall_positions - robot_x)
+        nearest_idx = np.argmin(dists)
+        return nearest_idx
     
     def _get_obs(self) -> np.ndarray:
         """Get current observation."""
@@ -186,6 +202,27 @@ class BrachiationEnv(gym.Env):
         # Walls cleared normalized (0 to 1)
         walls_cleared_norm = self.walls_cleared / len(self.wall_positions)
         
+        # Hand to Wall Vector (for Reaching Reward)
+        # Find target wall
+        target_wall_idx = self._find_target_wall_idx()
+        target_wall_x = self.wall_positions[target_wall_idx]
+        target_wall_height = self.wall_height # 0.3m is top? Or center? 
+        # Wall is cuboid size=(0.01, 0.15, 0.15). Pos is center.
+        # Top of wall is pos_z + size_z = 0.15 + 0.15 = 0.3.
+        # We want to grab the top.
+        target_point = np.array([target_wall_x, 0.0, 0.3])
+        
+        # Find closest hand (arm1 or arm2)
+        dist1 = np.linalg.norm(target_point - arm1_fingertip)
+        dist2 = np.linalg.norm(target_point - arm2_fingertip)
+        
+        if dist1 < dist2:
+            hand_to_wall = target_point - arm1_fingertip
+        else:
+            hand_to_wall = target_point - arm2_fingertip
+            
+        self.current_hand_to_wall_dist = min(dist1, dist2) # Store for reward
+        
         obs = np.concatenate([
             base_pos,
             base_quat,
@@ -198,6 +235,7 @@ class BrachiationEnv(gym.Env):
             self.target_pos,
             [next_wall_dist],
             [walls_cleared_norm],
+            hand_to_wall, # NEW
         ]).astype(np.float32)
         
         return obs
@@ -216,6 +254,13 @@ class BrachiationEnv(gym.Env):
             return self.data.geom_xpos[geom_id].copy()
         return np.zeros(3)
     
+    def _get_touch_sensor(self, sensor_name: str) -> float:
+        """Get value of a touch sensor."""
+        sensor_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
+        if sensor_id >= 0:
+            return self.data.sensordata[sensor_id]
+        return 0.0
+
     def reset(
         self,
         *,
@@ -265,16 +310,32 @@ class BrachiationEnv(gym.Env):
         self.previous_action = np.zeros(self.n_actuators)
 
 
-        # CURRICULUM: Shift starting position closer to goal (x=1.2)
-        # Goal is at 1.7. Walls are every 0.15m.
-        # Shift by integer number of wall spacings to maintain grasp relative to wall
-        # 0.15 * 8 = 1.20
-        # This skips first 8 walls (indices 0-7)
-        # CURRICULUM: Shift starting position (Start further back)
-        # Goal is at 1.7. Walls are every 0.15m.
-        # Shift by integer number of wall spacings (0.15 * 4 = 0.60)
-        start_x_shift = 0.60
-        self.data.qpos[0] += start_x_shift
+        # CURRICULUM: Shift starting position
+        if self.task_mode == "grasping":
+             # Spawn close to a random wall (0-10cm away) to practice grasping
+             # Pick a random wall index
+             wall_idx = self.np_random.integers(0, 10)
+             wall_x = self.wall_positions[wall_idx]
+             
+             # Shift robot to be near this wall. 
+             # Keyframe "hanging" approx at 0.2m? 
+             # Let's assume keyframe is suitable for first wall (0.15).
+             # Shift = wall_x - 0.15 + random_offset
+             
+             random_offset_x = self.np_random.uniform(-0.1, 0.0) # Slightly behind
+             shift = (wall_x - 0.15) + random_offset_x
+             self.data.qpos[0] += shift
+             
+             # Randomize vertical position slightly
+             self.data.qpos[2] += self.np_random.uniform(-0.05, 0.05)
+
+        else:
+            # TRAVERSAL Curriculum
+            # Shift starting position closer to initial area (x=0.6)
+            start_x_shift = 0.60
+            self.data.qpos[0] += start_x_shift
+        
+        # Determine how many walls we effectively cleared or skipped
         
         # Determine how many walls we effectively cleared or skipped
         # Walls are at 0.15, 0.30, ...
@@ -360,6 +421,46 @@ class BrachiationEnv(gym.Env):
         """Compute reward for current state."""
         reward = 0.0
         info = {}
+        
+        if self.task_mode == "grasping":
+            # --- GRASPING TASK REWARD ---
+            
+            # 1. Grasp Reward (High bonus for touching wall sensor)
+            # arm1_touch (idx 10), arm2_touch (idx 11) in sensor array usually, but use name
+            touch1 = self._get_touch_sensor("arm1_touch")
+            touch2 = self._get_touch_sensor("arm2_touch")
+            
+            # Binary active contact
+            is_grasping = (touch1 > 0.1) or (touch2 > 0.1)
+            
+            if is_grasping:
+                reward += 10.0 # Huge bonus for holding on
+                info["grasp_reward"] = 10.0
+            
+            # 2. Reaching Reward (Dense shaping)
+            # stored in _get_obs
+            if hasattr(self, 'current_hand_to_wall_dist'):
+                dist = self.current_hand_to_wall_dist
+                # Reward for being close: 1.0 at 0 dist, 0.0 at far
+                # Use tanh for nice gradient
+                reaching_reward = 1.0 - np.tanh(2.0 * dist)
+                reward += reaching_reward
+                info["reaching_reward"] = reaching_reward
+            
+            # 3. Survival Reward (Don't fall)
+            base_z = self.data.qpos[2]
+            if base_z > 0.2:
+                reward += 0.1 # Reduced bonus to focus on reaching
+            else:
+                reward -= 1.0 # Reduced penalty to encourage trying
+                
+            # 4. Action efficiency
+            action_cost = -0.01 * np.mean(np.square(self.data.ctrl))
+            reward += action_cost
+            
+            return reward, info
+
+        # --- TRAVERSAL TASK REWARD (Original) ---
         
         # Current base position
         base_pos = self.data.qpos[:3]
