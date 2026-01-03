@@ -312,7 +312,7 @@ class BrachiationEnv(gym.Env):
 
         # CURRICULUM: Shift starting position
         if self.task_mode == "grasping":
-             # Spawn close to a random wall (0-10cm away) to practice grasping
+             # Spawn close to a random wall (0-10cm away) -> Changed to 0-2cm for guaranteed reflex demo
              # Pick a random wall index
              wall_idx = self.np_random.integers(0, 10)
              wall_x = self.wall_positions[wall_idx]
@@ -322,7 +322,7 @@ class BrachiationEnv(gym.Env):
              # Let's assume keyframe is suitable for first wall (0.15).
              # Shift = wall_x - 0.15 + random_offset
              
-             random_offset_x = self.np_random.uniform(-0.1, 0.0) # Slightly behind
+             random_offset_x = self.np_random.uniform(-0.02, 0.0) # Very close spawn!
              shift = (wall_x - 0.15) + random_offset_x
              self.data.qpos[0] += shift
              
@@ -331,8 +331,16 @@ class BrachiationEnv(gym.Env):
 
         else:
             # TRAVERSAL Curriculum
-            # Shift starting position closer to initial area (x=0.6)
-            start_x_shift = 0.60
+            # Safe Spawn: Align with a wall so Reflex can engage immediately.
+            # Original keyframe is near wall 0 (x=0.15). 
+            # wall_positions = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 1.05, 1.20, 1.35, 1.50]
+            # Let's start at Wall 2 (index 2, x=0.45) for a moderate challenge.
+            # Curriculum: Randomize start wall between 0-4 for variety.
+            start_wall_idx = self.np_random.integers(0, 5) # Walls 0-4
+            start_wall_x = self.wall_positions[start_wall_idx]
+            
+            # Keyframe has robot near 0.15 (wall 0). Shift = target_x - 0.15
+            start_x_shift = start_wall_x - 0.15
             self.data.qpos[0] += start_x_shift
         
         # Determine how many walls we effectively cleared or skipped
@@ -371,11 +379,56 @@ class BrachiationEnv(gym.Env):
         info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": 0}
         
         return obs, info
+        return obs, info
     
+    def _apply_grasp_reflex(self, action: np.ndarray) -> np.ndarray:
+        """
+        Bio-Inspired Grasp Reflex:
+        If hand is close to wall or touching it, automatically close the gripper.
+        Overrides specific indices in the action array.
+        """
+        # Distances are computed in _get_obs -> stored in self.current_hand_to_wall_dist
+        # But we need specific arm distances here.
+        # Let's re-query or compute simply.
+        
+        # Thresholds
+        GRASP_DIST_THRESHOLD = 0.05 # 5cm proximity triggers reflex
+        
+        # Arm 1
+        touch1 = self._get_touch_sensor("arm1_touch")
+        # We need hand-to-wall dist for arm 1 specifically. 
+        # For efficiency, let's just check touch first as it's most robust.
+        
+        # Override if touching
+        # arm1_gripper is idx 4 (actuator index) based on xml
+        # arm2_gripper is idx 7
+        
+        # Note: action is scaled [-1, 1]. -1 is closed (based on reset).
+        
+        if touch1 > 0.01:
+            action[4] = -1.0 # Force close
+            
+        # Arm 2
+        touch2 = self._get_touch_sensor("arm2_touch")
+        if touch2 > 0.01:
+            action[7] = -1.0 # Force close
+            
+        # Proximity Reflex (Visual/Distance based)
+        # If we have the distance data available (we do in _get_obs but relying on internal state is tricky order-wise)
+        # Let's trust the touch sensor primarily for the "Reflex".
+        # Pure proximity reflex might be annoying if we want to release?
+        # A true reflex usually inhibits release if holding something.
+        # Let's stick to Contact Reflex for now. It's cleaner.
+        
+        return action
+
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """Take a step in the environment."""
         # Scale action from [-1, 1] to joint ranges
         action = np.clip(action, -1.0, 1.0)
+        
+        # Apply Bio-Inspired Reflex (Override actions)
+        action = self._apply_grasp_reflex(action)
         
         # Apply action to actuators
         self.data.ctrl[:] = action
@@ -418,137 +471,37 @@ class BrachiationEnv(gym.Env):
         return obs, reward, terminated, truncated, info
     
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
-        """Compute reward for current state."""
-        reward = 0.0
+        """
+        MINIMAL REWARD FUNCTION (Fresh Start)
+        
+        Only two things matter:
+        1. Move Forward (reward = forward velocity)
+        2. Don't Fall (handled by termination, not reward)
+        """
         info = {}
         
-        if self.task_mode == "grasping":
-            # --- GRASPING TASK REWARD ---
-            
-            # 1. Grasp Reward (High bonus for touching wall sensor)
-            # arm1_touch (idx 10), arm2_touch (idx 11) in sensor array usually, but use name
-            touch1 = self._get_touch_sensor("arm1_touch")
-            touch2 = self._get_touch_sensor("arm2_touch")
-            
-            # Binary active contact
-            is_grasping = (touch1 > 0.1) or (touch2 > 0.1)
-            
-            if is_grasping:
-                reward += 10.0 # Huge bonus for holding on
-                info["grasp_reward"] = 10.0
-            
-            # 2. Reaching Reward (Dense shaping)
-            # stored in _get_obs
-            if hasattr(self, 'current_hand_to_wall_dist'):
-                dist = self.current_hand_to_wall_dist
-                # Reward for being close: 1.0 at 0 dist, 0.0 at far
-                # Use tanh for nice gradient
-                reaching_reward = 1.0 - np.tanh(2.0 * dist)
-                reward += reaching_reward
-                info["reaching_reward"] = reaching_reward
-            
-            # 3. Survival Reward (Don't fall)
-            base_z = self.data.qpos[2]
-            if base_z > 0.2:
-                reward += 0.1 # Reduced bonus to focus on reaching
-            else:
-                reward -= 1.0 # Reduced penalty to encourage trying
-                
-            # 4. Action efficiency
-            action_cost = -0.01 * np.mean(np.square(self.data.ctrl))
-            reward += action_cost
-            
-            return reward, info
-
-        # --- TRAVERSAL TASK REWARD (Original) ---
+        # === ONLY REWARD: Forward Velocity ===
+        forward_vel = self.data.qvel[0]  # x-velocity
+        reward = forward_vel * 5.0  # Scale for visibility in logs
+        info["forward_vel"] = forward_vel
         
-        # Current base position
-        base_pos = self.data.qpos[:3]
-        robot_x = base_pos[0]
-        robot_z = base_pos[2]
-        base_quat = self.data.qpos[3:7]
-        
-        # Update walls cleared count
-        old_walls_cleared = self.walls_cleared
-        while (self.walls_cleared < len(self.wall_positions) and 
-               robot_x > self.wall_positions[self.walls_cleared] + 0.02):  # Past the wall
-            self.walls_cleared += 1
-        
-        # 1. Forward progress reward (normalized by total distance)
-        # Scale to be roughly 1.0 per second for good speed
-        # total distance ~1.6m. If speed is 0.2m/s, we want reward ~1.0
-        # forward_velocity = self.data.qvel[0]
-        # reward += forward_velocity * 1.0
-        
-        # Distance-based potential reward (more stable than velocity)
-        dist_to_go = self.target_pos[0] - robot_x
-        # Potential: closer is better (higher)
-        # Previous potential was -dist_to_go. Change = new - old
-        # But here we just use instantaneous progress component if we want, 
-        # but the previous implementation used absolute position difference.
-        # Let's use a simple velocity-based reward which is standard for locomotion
-        forward_vel = self.data.qvel[0]
-        reward += forward_vel * 1.0
-        info["forward_reward"] = forward_vel
-        
-        # 2. Wall clearance bonus (reduced magnitude)
-        walls_just_cleared = self.walls_cleared - old_walls_cleared
-        if walls_just_cleared > 0:
-            wall_bonus = 2.0  # Reduced from 10.0
-            reward += wall_bonus
-            info["wall_bonus"] = wall_bonus
-        else:
-            info["wall_bonus"] = 0.0
-        
-        # 3. Height reward (simplified)
-        # Just encourage keeping the CG at a reasonable height, slightly higher than the bar?
-        # Bar is at ~? (Walls are 0.3m tall).
-        # We want the robot to swing, so height fluctuates.
-        # Maybe just penalize being too low (floor is 0).
-        # We already have a penalty for falling.
-        # Let's add a small bonus for being above a threshold (e.g. 0.25m) to encourage lifting
-        if robot_z > 0.25:
-            reward += 0.1
-        info["height_reward"] = 0.0 # Deprecated specific wall height logic
-        
-        # 4. Height maintenance penalty (crisis)
-        # Penalize drastically if very close to floor to discourage falling
-        if robot_z < 0.1:
-            reward -= 0.1
-        
-        # 5. Energy efficiency (allow more torque, but penalize slightly)
-        action_cost = -0.01 * np.mean(np.square(self.data.ctrl)) # Mean is better than sum for variable act dims
+        # === SMALL ACTION COST (prevent wild flailing) ===
+        action_cost = -0.01 * np.mean(np.square(self.data.ctrl))
         reward += action_cost
         info["action_cost"] = action_cost
         
-        # 6. Smoothness penalty (encourage smooth motion)
-        # 9. Angular velocity penalty (encourage stability)
-        ang_vel_penalty = -0.1 * np.linalg.norm(self.data.qvel[3:6])
-        reward += ang_vel_penalty
-        info["ang_vel_penalty"] = ang_vel_penalty
+        # === TRACK WALLS CLEARED (for info only, not reward) ===
+        robot_x = self.data.qpos[0]
+        while (self.walls_cleared < len(self.wall_positions) and 
+               robot_x > self.wall_positions[self.walls_cleared] + 0.02):
+            self.walls_cleared += 1
+        info["walls_cleared"] = self.walls_cleared
         
-        # 10. Action Smoothness (from step function)
-        if hasattr(self, 'smoothness_penalty'):
-            reward += self.smoothness_penalty
-            info["smoothness_penalty"] = self.smoothness_penalty
-        
-        # 8. Upright orientation bonus (keep base somewhat upright)
-        up_vec = self._quat_to_up_vec(base_quat)
-        # Reward alignment with Z axis
-        upright_reward = 0.1 * up_vec[2]
-        reward += upright_reward
-        info["upright_bonus"] = upright_reward
-
-        # 7. Target proximity reward (dense, terminal)
-        dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
-        if self.walls_cleared >= len(self.wall_positions):
-            # Dense reward for closing in on target
-            reward += (1.0 - np.tanh(dist_to_target)) * 0.1
-            
-            # Bonus for reaching target
-            if dist_to_target < 0.15:
-                reward += 10.0
-                info["target_reached"] = True
+        # === SUCCESS BONUS (reach target) ===
+        dist_to_target = np.linalg.norm(self.data.qpos[:2] - self.target_pos[:2])
+        if dist_to_target < 0.15 and self.walls_cleared >= len(self.wall_positions):
+            reward += 100.0  # Big bonus for success
+            info["target_reached"] = True
         
         return reward, info
     
