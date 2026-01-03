@@ -127,6 +127,7 @@ def run_training(args):
             render_mode="rgb_array" if args.headless else None,
             initial_keyframe="wall1_grip",
             task_mode=args.task,
+            curriculum_level=args.curriculum_level,
         )
     
     # Create vectorized environment
@@ -352,6 +353,7 @@ Examples:
     
     parser.add_argument("--record-video", action="store_true", help="Record video during evaluation")
     parser.add_argument("--task", type=str, default="traversal", choices=["traversal", "grasping"], help="Task to train (traversal or grasping)")
+    parser.add_argument("--curriculum-level", type=int, default=8, help="Starting wall for curriculum (0-9). Higher = easier.")
     
     args = parser.parse_args()
     

@@ -52,10 +52,11 @@ class BrachiationEnv(gym.Env):
     def __init__(
         self,
         render_mode: Optional[str] = None,
-        max_episode_steps: int = 2000, # Longer episodes
+        max_episode_steps: int = 2000,
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
-        task_mode: str = "traversal", # "traversal" or "grasping"
+        task_mode: str = "traversal",
+        curriculum_level: int = 8,  # Start wall (0-9). Higher = easier (closer to goal)
     ):
         """
         Initialize the brachiation environment.
@@ -66,6 +67,7 @@ class BrachiationEnv(gym.Env):
             control_freq: Control frequency in Hz
             initial_keyframe: Name of the keyframe to load at reset, or None to skip
             task_mode: Task to train ("traversal" or "grasping")
+            curriculum_level: Starting wall index (0-9). Higher = closer to goal = easier.
         """
         super().__init__()
         
@@ -74,6 +76,7 @@ class BrachiationEnv(gym.Env):
         self.task_mode = task_mode
         self.control_freq = control_freq
         self.initial_keyframe = initial_keyframe
+        self.curriculum_level = curriculum_level
         
         # Load MuJoCo model
         model_path = Path(__file__).parent.parent.parent / "mujoco" / "robot.xml"
@@ -114,6 +117,7 @@ class BrachiationEnv(gym.Env):
         self.current_step = 0
         self.initial_base_pos = None
         self.previous_action = None
+        self.prev_distance_to_goal = None  # For distance-based reward
         
         # Original masses for domain randomization
         self.original_masses = self.model.body_mass.copy()
@@ -331,32 +335,16 @@ class BrachiationEnv(gym.Env):
 
         else:
             # TRAVERSAL Curriculum
-            # Safe Spawn: Align with a wall so Reflex can engage immediately.
-            # Original keyframe is near wall 0 (x=0.15). 
-            # wall_positions = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90, 1.05, 1.20, 1.35, 1.50]
-            # Let's start at Wall 2 (index 2, x=0.45) for a moderate challenge.
-            # Curriculum: Randomize start wall between 0-4 for variety.
-            start_wall_idx = self.np_random.integers(0, 5) # Walls 0-4
+            # Use curriculum_level to determine starting wall.
+            # Level 8 = Wall 8 (close to goal, easy)
+            # Level 0 = Wall 0 (far from goal, hard)
+            start_wall_idx = self.curriculum_level
+            start_wall_idx = max(0, min(9, start_wall_idx))  # Clamp to valid range
             start_wall_x = self.wall_positions[start_wall_idx]
             
             # Keyframe has robot near 0.15 (wall 0). Shift = target_x - 0.15
             start_x_shift = start_wall_x - 0.15
             self.data.qpos[0] += start_x_shift
-        
-        # Determine how many walls we effectively cleared or skipped
-        
-        # Determine how many walls we effectively cleared or skipped
-        # Walls are at 0.15, 0.30, ...
-        # If we start at 1.2, we differ from 0 by 1.2.
-        # Assuming original keyframe was at ~0 or grasping first wall?
-        # If orig was grasping wall at 0.15, new is grasping wall at 1.35?
-        # Let's assume the shift aligns with walls.
-        # We need to set walls_cleared correctly so we don't get "cleared" rewards instantly for past walls
-        # wall_positions = [0.15, 0.30, ..., 1.50]
-        # if robot is at 1.2, it is past 0.15...1.05 (7 walls).
-        # It is approaching 1.2? or on it?
-        # Let's set walls_cleared based on position in loop later.
-
         
         # Step a few times to let gripper settle onto bar
         for _ in range(50):
@@ -368,6 +356,9 @@ class BrachiationEnv(gym.Env):
         # Store initial position
         self.initial_base_pos = self.data.qpos[:3].copy()
         self.current_step = 0
+        
+        # Initialize distance tracking for reward
+        self.prev_distance_to_goal = self.target_pos[0] - self.data.qpos[0]
         
         # Update walls_cleared based on starting position
         self.walls_cleared = 0
@@ -472,26 +463,32 @@ class BrachiationEnv(gym.Env):
     
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
-        MINIMAL REWARD FUNCTION (Fresh Start)
+        DISTANCE PROGRESS REWARD (Curriculum Approach)
         
-        Only two things matter:
-        1. Move Forward (reward = forward velocity)
-        2. Don't Fall (handled by termination, not reward)
+        Reward = old_distance - new_distance (progress toward goal)
+        This works for swinging motion where velocity oscillates.
         """
         info = {}
         
-        # === ONLY REWARD: Forward Velocity ===
-        forward_vel = self.data.qvel[0]  # x-velocity
-        reward = forward_vel * 5.0  # Scale for visibility in logs
-        info["forward_vel"] = forward_vel
+        # === DISTANCE PROGRESS REWARD ===
+        robot_x = self.data.qpos[0]
+        current_distance = self.target_pos[0] - robot_x
+        
+        # Progress = how much closer we got (positive = good)
+        progress = self.prev_distance_to_goal - current_distance
+        reward = progress * 10.0  # Scale for visibility
+        info["distance_progress"] = progress
+        info["current_distance"] = current_distance
+        
+        # Update for next step
+        self.prev_distance_to_goal = current_distance
         
         # === SMALL ACTION COST (prevent wild flailing) ===
         action_cost = -0.01 * np.mean(np.square(self.data.ctrl))
         reward += action_cost
         info["action_cost"] = action_cost
         
-        # === TRACK WALLS CLEARED (for info only, not reward) ===
-        robot_x = self.data.qpos[0]
+        # === TRACK WALLS CLEARED (for info only) ===
         while (self.walls_cleared < len(self.wall_positions) and 
                robot_x > self.wall_positions[self.walls_cleared] + 0.02):
             self.walls_cleared += 1
