@@ -1,195 +1,91 @@
 # Dual-Arm Brachiation Robot
 
-A reinforcement learning project for training a dual-arm robot to move by grasping and swinging (brachiation locomotion) using MuJoCo physics simulation.
-
-![CAD Design](docs/images/cad-design-1.png)
-
-## Features
-
-- **MuJoCo Physics Simulation**: Fast and accurate physics simulation
-- **Gymnasium Environment**: Standard RL interface compatible with popular libraries
-- **Stable-Baselines3 Integration**: Ready-to-use PPO training
-- **Interactive Visualization**: Real-time 3D viewer with camera controls
-- **Minimal Setup**: Just install dependencies and run!
+A reinforcement learning project for training a dual-arm robot to traverse walls using brachiation (swing) locomotion with MuJoCo physics simulation.
 
 ## Quick Start
 
 ### 1. Install Dependencies
 
 ```bash
-# Create virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install requirements
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Visualize the Robot
+### 2. Train the Robot
 
 ```bash
-# Interactive viewer
-python src/main.py
+# Curriculum Training (Recommended)
+# Start with Level 8 (easy: 2 walls to goal), decrease level as agent improves
 
-# Or use the visualization script
-python scripts/visualize.py --mode viewer
+# Stage 1: Easy (Wall 8 → Goal)
+python src/main.py --mode train --curriculum-level 8 --total-timesteps 500000 --num-envs 16
+
+# Stage 2: Medium (Wall 4 → Goal)
+python src/main.py --mode train --curriculum-level 4 --total-timesteps 1000000 --num-envs 16
+
+# Stage 3: Hard (Wall 0 → Goal - full course)
+python src/main.py --mode train --curriculum-level 0 --total-timesteps 5000000 --num-envs 16
 ```
 
-### 3. Run a Demo
+### 3. Evaluate
 
 ```bash
-# Demo with sinusoidal movements
-python src/main.py --mode demo
-
-# Or with custom duration
-python src/main.py --mode demo --duration 20.0
-```
-
-### 4. Train with Reinforcement Learning
-
-```bash
-# Start training (with visualization)
-python src/main.py --mode train
-
-# Train headless (faster, for servers)
-python src/main.py --mode train --headless --num-envs 8
-
-# Train with custom settings
-python src/main.py --mode train --total-timesteps 2000000 --num-envs 16
-```
-
-### 5. Evaluate a Trained Model
-
-```bash
+# Watch trained agent
 python src/main.py --mode eval --model-path ./checkpoints/brachiation_final
+
+# Record video
+python src/main.py --mode eval --model-path ./checkpoints/brachiation_final --record-video
 ```
+
+### 4. Monitor Training
+
+```bash
+tensorboard --logdir ./logs/tensorboard
+```
+
+## CLI Reference
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--mode` | `viewer` | `viewer`, `demo`, `train`, `eval` |
+| `--curriculum-level` | `8` | Starting wall (0-9). Higher = closer to goal = easier |
+| `--total-timesteps` | `1000000` | Training duration |
+| `--num-envs` | `4` | Parallel environments |
+| `--headless` | `false` | No visualization (faster training) |
+| `--model-path` | - | Path to model for evaluation |
+| `--record-video` | `false` | Save evaluation video |
 
 ## Project Structure
 
 ```
 dual2/
-├── mujoco/
-│   └── robot.xml           # MuJoCo model file
 ├── src/
-│   ├── main.py             # Main entry point
+│   ├── main.py                 # Entry point
 │   └── envs/
-│       └── brachiation_env.py  # Gymnasium environment
-├── scripts/
-│   └── visualize.py        # Visualization utilities
-├── assets/
-│   ├── parts/              # STL mesh files
-│   └── urdf/               # Original URDF (reference)
-├── checkpoints/            # Saved models (created during training)
-├── logs/                   # Training logs (created during training)
+│       └── brachiation_env.py  # Gym environment
+├── mujoco/
+│   └── robot.xml               # MuJoCo model
+├── checkpoints/                # Saved models
+├── logs/                       # Tensorboard logs
 └── requirements.txt
 ```
 
-## Command Reference
+## How It Works
 
-### Main Script (`src/main.py`)
+**Reward**: Distance progress toward goal (`old_dist - new_dist`)  
+**Curriculum**: Start close to goal, gradually increase difficulty  
+**Grasp Reflex**: Gripper auto-closes on contact (focuses learning on swing)
 
-| Command | Description |
-|---------|-------------|
-| `python src/main.py` | Interactive viewer |
-| `python src/main.py --mode demo` | Run demo simulation |
-| `python src/main.py --mode train` | Train with PPO |
-| `python src/main.py --mode eval` | Evaluate trained model |
-| `--headless` | Run without visualization |
-| `--num-envs N` | Number of parallel environments |
-| `--total-timesteps N` | Total training timesteps |
-| `--seed N` | Random seed for reproducibility |
+## Tips
 
-### Visualization Script (`scripts/visualize.py`)
+1. **Tensorboard** shows `distance_progress` and `walls_cleared` metrics
+2. **Checkpoints** saved every 10k steps in `./checkpoints/`
+3. **GPU**: Add `device="cuda"` to PPO in `main.py` if available
 
-| Command | Description |
-|---------|-------------|
-| `--mode viewer` | Interactive MuJoCo viewer |
-| `--mode demo` | Sinusoidal joint demo |
-| `--mode test` | Test joint limits |
-| `--mode record` | Record video |
-| `--mode info` | Print model information |
+## Requirements
 
-## Viewer Controls
-
-When using the interactive viewer:
-
-| Control | Action |
-|---------|--------|
-| Mouse drag | Rotate camera |
-| Right-click drag | Pan camera |
-| Scroll | Zoom in/out |
-| Double-click | Track body |
-| Space | Pause/Resume |
-| Backspace | Reset simulation |
-| Tab | Toggle visualizations |
-| ESC | Exit |
-
-## Environment Details
-
-### Observation Space (38D)
-- Base position (3D) and orientation (4D quaternion)
-- Base linear (3D) and angular (3D) velocity
-- Joint positions (8D)
-- Joint velocities (8D)
-- Fingertip positions (6D)
-- Target bar position (3D)
-
-### Action Space (8D)
-- Continuous joint position targets, normalized to [-1, 1]
-
-### Reward Function
-- Forward progress reward
-- Height maintenance penalty
-- Energy efficiency (action cost)
-- Velocity bonus
-- Proximity to target bar reward
-- Bar reaching bonus
-
-## Training Tips
-
-1. **Start with fewer environments** for debugging:
-   ```bash
-   python src/main.py --mode train --num-envs 1
-   ```
-
-2. **Use TensorBoard** to monitor training:
-   ```bash
-   tensorboard --logdir ./logs/tensorboard
-   ```
-
-3. **Adjust hyperparameters** by editing the PPO config in `src/main.py`
-
-4. **Checkpoints** are saved every 10,000 steps in `./checkpoints/`
-
-## Troubleshooting
-
-### "MuJoCo model not found"
-Make sure you're running from the project root directory:
-```bash
-cd /path/to/dual2
-python src/main.py
-```
-
-### "No module named 'mujoco'"
-Install MuJoCo:
-```bash
-pip install mujoco
-```
-
-### Viewer not opening
-Ensure you have a display available. For headless servers:
-```bash
-python src/main.py --mode train --headless
-```
-
-## License
-
-See LICENSE file for details.
-
-## Acknowledgments
-
-- Robot model created using Onshape and converted with `onshape-to-robot`
-- Powered by [MuJoCo](https://mujoco.org/) physics engine
-- RL training with [Stable-Baselines3](https://stable-baselines3.readthedocs.io/)
-
-
+- Python 3.8+
+- MuJoCo
+- Stable-Baselines3
+- Gymnasium
