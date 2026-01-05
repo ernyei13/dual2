@@ -130,7 +130,7 @@ class BrachiationEnv(gym.Env):
         # Wall obstacle course setup
         # 10 walls at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
         self.wall_positions = np.array([0.15 + 0.15 * i for i in range(10)])
-        self.wall_height = 0.30  # 30cm tall
+        self.wall_height = 0.31  # Height of horizontal bars above ground
         self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
         self.walls_cleared = 0
         
@@ -370,7 +370,6 @@ class BrachiationEnv(gym.Env):
         info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": 0}
         
         return obs, info
-        return obs, info
     
     def _apply_grasp_reflex(self, action: np.ndarray) -> np.ndarray:
         """
@@ -463,10 +462,14 @@ class BrachiationEnv(gym.Env):
     
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
-        DISTANCE PROGRESS REWARD (Curriculum Approach)
+        MULTI-COMPONENT REWARD FOR BRACHIATION
         
-        Reward = old_distance - new_distance (progress toward goal)
-        This works for swinging motion where velocity oscillates.
+        Combines:
+        1. Distance progress toward goal
+        2. Height maintenance (stay above ground)
+        3. Bar reaching reward (get hand close to bars)
+        4. Grip reward (holding onto bars)
+        5. Action smoothness
         """
         info = {}
         
@@ -476,16 +479,42 @@ class BrachiationEnv(gym.Env):
         
         # Progress = how much closer we got (positive = good)
         progress = self.prev_distance_to_goal - current_distance
-        reward = progress * 10.0  # Scale for visibility
-        info["distance_progress"] = progress
+        forward_reward = progress * 20.0  # Scale for visibility
+        info["forward_progress"] = progress
         info["current_distance"] = current_distance
         
         # Update for next step
         self.prev_distance_to_goal = current_distance
         
+        # === HEIGHT MAINTENANCE REWARD ===
+        robot_z = self.data.qpos[2]
+        # Optimal height is around bar level (~0.31m)
+        target_height = 0.31
+        height_error = abs(robot_z - target_height)
+        height_reward = -2.0 * height_error  # Penalize being too high or low
+        info["height_reward"] = height_reward
+        
+        # === BAR REACHING REWARD ===
+        # Encourage hands to approach the next bar
+        reaching_reward = 0.0
+        if hasattr(self, 'current_hand_to_wall_dist'):
+            # Reward for getting hand close to bar (inverse distance)
+            reaching_reward = max(0, 0.1 - self.current_hand_to_wall_dist) * 5.0
+        info["reaching_reward"] = reaching_reward
+        
+        # === GRIP REWARD ===
+        # Reward for touching/holding bars
+        touch1 = self._get_touch_sensor("arm1_touch")
+        touch2 = self._get_touch_sensor("arm2_touch")
+        grip_reward = (min(touch1, 1.0) + min(touch2, 1.0)) * 0.5
+        info["grip_reward"] = grip_reward
+        
+        # === ACTION SMOOTHNESS ===
+        smoothness_reward = self.smoothness_penalty if hasattr(self, 'smoothness_penalty') else 0.0
+        info["smoothness_reward"] = smoothness_reward
+        
         # === SMALL ACTION COST (prevent wild flailing) ===
-        action_cost = -0.01 * np.mean(np.square(self.data.ctrl))
-        reward += action_cost
+        action_cost = -0.005 * np.mean(np.square(self.data.ctrl))
         info["action_cost"] = action_cost
         
         # === TRACK WALLS CLEARED (for info only) ===
@@ -497,8 +526,14 @@ class BrachiationEnv(gym.Env):
         # === SUCCESS BONUS (reach target) ===
         dist_to_target = np.linalg.norm(self.data.qpos[:2] - self.target_pos[:2])
         if dist_to_target < 0.15 and self.walls_cleared >= len(self.wall_positions):
-            reward += 100.0  # Big bonus for success
+            success_bonus = 100.0
             info["target_reached"] = True
+        else:
+            success_bonus = 0.0
+        
+        # === TOTAL REWARD ===
+        reward = forward_reward + height_reward + reaching_reward + grip_reward + smoothness_reward + action_cost + success_bonus
+        info["total_reward"] = reward
         
         return reward, info
     

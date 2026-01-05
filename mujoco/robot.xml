@@ -113,35 +113,55 @@
         </body>
       </body>
     </body>
+    <!-- Wall 1 with horizontal bar at top for grasping -->
     <body name="wall1" pos="0.15 0 0.15">
       <geom name="wall1" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar1" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 2 with horizontal bar -->
     <body name="wall2" pos="0.3 0 0.15">
       <geom name="wall2" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar2" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 3 with horizontal bar -->
     <body name="wall3" pos="0.45 0 0.15">
       <geom name="wall3" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar3" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 4 with horizontal bar -->
     <body name="wall4" pos="0.6 0 0.15">
       <geom name="wall4" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar4" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 5 with horizontal bar -->
     <body name="wall5" pos="0.75 0 0.15">
       <geom name="wall5" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar5" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 6 with horizontal bar -->
     <body name="wall6" pos="0.9 0 0.15">
       <geom name="wall6" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar6" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 7 with horizontal bar -->
     <body name="wall7" pos="1.05 0 0.15">
       <geom name="wall7" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar7" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 8 with horizontal bar -->
     <body name="wall8" pos="1.2 0 0.15">
       <geom name="wall8" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar8" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 9 with horizontal bar -->
     <body name="wall9" pos="1.35 0 0.15">
       <geom name="wall9" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar9" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
+    <!-- Wall 10 with horizontal bar -->
     <body name="wall10" pos="1.5 0 0.15">
       <geom name="wall10" size="0.01 0.15 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="bar10" pos="0 0 0.16" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <body name="target" pos="1.7 0 0.05">
       <geom name="target" size="0.08 0.01" type="cylinder" contype="0" conaffinity="0" rgba="0.2 0.8 0.2 0.8"/>
@@ -187,7 +207,9 @@
   </sensor>
 
   <keyframe>
-  <key name="hanging" qpos="0.20037503 0.0999989 0.37076306 1 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0"/>
-  <key name="wall1_grip" qpos="0.20037503 0.0999989 0.37076306 1 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0"/>
+  <!-- Robot hanging from first bar, arm1 gripping bar1 -->
+  <key name="hanging" qpos="0.15 0.0 0.31 0.707 0 0.707 0 -1.5 1.57 -1.5 0 -1.0 0 0 0" ctrl="0 1.57 -1.5 0 -1.0 0 0 0"/>
+  <!-- Same as hanging - good grip on bar1 -->
+  <key name="wall1_grip" qpos="0.15 0.0 0.31 0.707 0 0.707 0 -1.5 1.57 -1.5 0 -1.0 0 0 0" ctrl="0 1.57 -1.5 0 -1.0 0 0 0"/>
   </keyframe>
  </mujoco>

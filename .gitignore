@@ -1,18 +1,33 @@
-# Environments
-fresh_env/
-onshape-venv/
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
+*.egg-info/
+
+# Virtual environments
 venv/
+env/
+.venv/
+
+# Training outputs (regenerated on trainer PC)
+checkpoints/
+logs/
+
+# MuJoCo temp files
+MJMODEL.TXT
+MUJOCO_LOG.TXT
+mjmodel.xml
 
 # OS
 .DS_Store
+Thumbs.db
 
-checkpoints/
-logs/
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Videos (large files)
+*.mp4
