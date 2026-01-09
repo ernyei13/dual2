@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Script to record a video of a trained PPO agent.
+Supports VecNormalize wrapper for proper observation normalization.
 """
 
 import argparse
@@ -15,62 +16,100 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.envs.brachiation_env import BrachiationEnv
 from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
-def record_agent(model_path, output_path, duration=10.0, fps=30):
+
+def record_agent(model_path, output_path, duration=10.0, fps=30, vec_normalize_path=None):
     print(f"Loading model from {model_path}...")
     model = PPO.load(model_path)
     
     print("Creating environment...")
     # Use rgb_array mode for recording
-    env = BrachiationEnv(render_mode="rgb_array")
+    env = BrachiationEnv(render_mode="rgb_array", curriculum_level=0)
     
-    obs, _ = env.reset()
+    # Load VecNormalize stats if available
+    if vec_normalize_path and Path(vec_normalize_path).exists():
+        print(f"Loading normalization stats from {vec_normalize_path}...")
+        vec_env = DummyVecEnv([lambda: env])
+        vec_env = VecNormalize.load(vec_normalize_path, vec_env)
+        vec_env.training = False  # Don't update stats during eval
+        vec_env.norm_reward = False  # Don't normalize rewards during eval
+        use_vec_env = True
+    else:
+        use_vec_env = False
+    
+    if use_vec_env:
+        obs = vec_env.reset()
+    else:
+        obs, _ = env.reset()
     
     frames = []
     n_frames = int(duration * fps)
-    # We need to manually manage the rendering timing since we are not using the env's internal loop
-    # But since BrachiationEnv.render() returns the current state, we track steps.
     
-    print(f"Recording {duration}s video...")
+    print(f"Recording {duration}s video ({n_frames} frames)...")
     
     total_reward = 0
+    episode_count = 0
     
-    # Run simulation
-    # Gymnasium steps logic
     for i in range(n_frames):
-        # We might need multiple physics steps per frame if control freq is different from fps
-        # usage: env.control_freq is 50Hz. FPS is 30Hz.
-        # This simple loop captures frames at step intervals. 
-        # For smooth video, we ideally step the env at 1/fps intervals.
-        # BrachiationEnv step() handles frame_skip based on control_freq (50Hz).
-        # So one step = 1/50 sec = 0.02s.
-        # 30FPS = 0.033s.
-        # We can just record every step and playback at 50fps, or subsample.
-        # Let's just record every step and set video fps to 50 for 1:1 speed.
-        
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.step(action)
-        total_reward += reward
         
-        frame = env.render()
-        if frame is not None:
-             frames.append(frame)
-             
-        if terminated or truncated:
-            obs, _ = env.reset()
+        if use_vec_env:
+            obs, reward, done, info = vec_env.step(action)
+            total_reward += reward[0]
             
-        if i % 50 == 0:
-            print(f"Step {i}/{n_frames} Reward: {total_reward:.2f}")
+            # Get frame from underlying env
+            frame = env.render()
+            if frame is not None:
+                frames.append(frame)
+                
+            if done[0]:
+                episode_count += 1
+                # VecEnv auto-resets
+        else:
+            obs, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            
+            frame = env.render()
+            if frame is not None:
+                frames.append(frame)
+                
+            if terminated or truncated:
+                episode_count += 1
+                obs, _ = env.reset()
+            
+        if i % 100 == 0:
+            print(f"  Frame {i}/{n_frames} | Reward: {total_reward:.2f} | Episodes: {episode_count}")
 
-    print(f"Saving video to {output_path} with simulated FPS {env.control_freq}...")
-    imageio.mimsave(output_path, frames, fps=env.control_freq)
-    print("Done!")
+    print(f"\nTotal reward: {total_reward:.2f} over {episode_count} episodes")
+    print(f"Saving video to {output_path}...")
+    
+    # Save at simulation fps for real-time playback
+    video_fps = min(env.control_freq, 60)  # Cap at 60fps for reasonable file size
+    imageio.mimsave(output_path, frames, fps=video_fps)
+    print(f"Done! Video saved with {len(frames)} frames at {video_fps} FPS")
+    
+    if use_vec_env:
+        vec_env.close()
+    else:
+        env.close()
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model-path", type=str, default="./checkpoints/brachiation_final")
-    parser.add_argument("--output", type=str, default="trained_agent_demo.mp4")
-    parser.add_argument("--duration", type=float, default=10.0)
+    parser = argparse.ArgumentParser(description="Record a video of a trained agent")
+    parser.add_argument("--model-path", type=str, default="./checkpoints/brachiation_final/best_model/best_model.zip",
+                        help="Path to the trained model")
+    parser.add_argument("--vec-normalize", type=str, default="./checkpoints/brachiation_final/vec_normalize.pkl",
+                        help="Path to VecNormalize stats (optional)")
+    parser.add_argument("--output", type=str, default="eval_video.mp4",
+                        help="Output video path")
+    parser.add_argument("--duration", type=float, default=15.0,
+                        help="Video duration in seconds")
     args = parser.parse_args()
     
-    record_agent(args.model_path, args.output, args.duration)
+    record_agent(
+        args.model_path, 
+        args.output, 
+        args.duration,
+        vec_normalize_path=args.vec_normalize
+    )
