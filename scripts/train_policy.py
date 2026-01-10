@@ -99,7 +99,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--visualize-steps", type=int, default=200, help="How many frames to render during the visualization stage.")
     parser.add_argument("--force-cpu", action="store_true", help="Disable GPU acceleration by forcing CPU for Stable Baselines.")
     parser.add_argument("--n-envs", type=int, default=8, help="Number of parallel environments for training.")
-    parser.add_argument("--curriculum-start", type=int, default=8, help="Starting curriculum level (0-9, higher=easier).")
+    parser.add_argument("--curriculum-start", type=int, default=0, help="Starting curriculum level (0-9, 0=beginning).")
     return parser.parse_args()
 
 
@@ -132,7 +132,7 @@ def make_env(rank: int, seed: int, curriculum_level: int) -> Callable[[], Monito
             render_mode=None, 
             initial_keyframe="wall1_grip",
             curriculum_level=curriculum_level,
-            max_episode_steps=1000,  # Shorter episodes for faster iteration
+            max_episode_steps=10000,  # Long episodes for full traversal
         )
         env.reset(seed=seed + rank)
         return Monitor(env)
