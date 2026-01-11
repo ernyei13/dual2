@@ -368,7 +368,7 @@ class BrachiationEnv(gym.Env):
                 self.walls_cleared += 1
         
         obs = self._get_obs()
-        info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": 0}
+        info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": self.walls_cleared}
         
         return obs, info
     
