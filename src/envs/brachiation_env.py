@@ -56,7 +56,7 @@ class BrachiationEnv(gym.Env):
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
         task_mode: str = "traversal",
-        curriculum_level: int = 0,  # Start wall (0-9). 0 = start from beginning
+        curriculum_level: int = 5,  # Start at wall 5 (closer to goal)
     ):
         """
         Initialize the brachiation environment.
@@ -332,18 +332,22 @@ class BrachiationEnv(gym.Env):
 
         else:
             # TRAVERSAL Curriculum
-            # Use curriculum_level to determine starting wall.
-            # Level 8 = Wall 8 (close to goal, easy)
-            # Level 0 = Wall 0 (far from goal, hard)
+            # Keyframe already positions robot at wall 5 (x=0.75)
+            # Use curriculum_level to shift from there
+            # Level 5 = stay at keyframe position
+            # Level < 5 = move back (harder)
+            # Level > 5 = move forward (easier)
+            keyframe_wall = 5
             start_wall_idx = self.curriculum_level
-            start_wall_idx = max(0, min(9, start_wall_idx))  # Clamp to valid range
-            start_wall_x = self.wall_positions[start_wall_idx]
+            start_wall_idx = max(0, min(9, start_wall_idx))
             
-            # Keyframe has robot near 0.15 (wall 0). Shift = target_x - 0.15
-            start_x_shift = start_wall_x - 0.15
-            self.data.qpos[0] += start_x_shift
+            if start_wall_idx != keyframe_wall:
+                target_x = self.wall_positions[start_wall_idx]
+                keyframe_x = self.wall_positions[keyframe_wall]  # 0.75
+                shift = target_x - keyframe_x
+                self.data.qpos[0] += shift
         
-        # Step a few times to let gripper settle onto bar
+        # Step a few times to let physics settle
         for _ in range(50):
             mujoco.mj_step(self.model, self.data)
         
