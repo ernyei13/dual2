@@ -207,9 +207,9 @@
   </sensor>
 
   <keyframe>
-  <!-- Robot hanging from first bar, upright orientation (identity quaternion = 1 0 0 0) -->
-  <key name="hanging" qpos="0.15 0.0 0.31 1 0 0 0 0 1.0 -0.5 0 -1.0 0 0 0" ctrl="0 1.0 -0.5 0 -1.0 0 0 0"/>
-  <!-- Same as hanging - good grip on bar1 -->
-  <key name="wall1_grip" qpos="0.15 0.0 0.31 1 0 0 0 0 1.0 -0.5 0 -1.0 0 0 0" ctrl="0 1.0 -0.5 0 -1.0 0 0 0"/>
+  <!-- Robot hanging from first bar - positioned so arm can reach up to grip bar at z=0.31 -->
+  <!-- Base is lower (z=0.20) so the arm extends up to the bar -->
+  <key name="hanging" qpos="0.15 0.0 0.20 1 0 0 0 -0.5 1.2 -0.8 0 -1.0 0.5 1.5 -0.5" ctrl="-0.5 1.2 -0.8 0 -1.0 0.5 1.5 -0.5"/>
+  <key name="wall1_grip" qpos="0.15 0.0 0.20 1 0 0 0 -0.5 1.2 -0.8 0 -1.0 0.5 1.5 -0.5" ctrl="-0.5 1.2 -0.8 0 -1.0 0.5 1.5 -0.5"/>
   </keyframe>
  </mujoco>

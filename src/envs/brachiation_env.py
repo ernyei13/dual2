@@ -287,27 +287,24 @@ class BrachiationEnv(gym.Env):
             if key_id >= 0:
                 mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
         
-        # Ensure gripper is closed tight for grip
-        # ctrl[4] is arm1_gripper_act, set to -1.0 for max grip
-        self.data.ctrl[4] = -1.0
+        # Ensure BOTH grippers are closed tight for grip
+        self.data.ctrl[4] = -1.0  # arm1_gripper_act
+        self.data.ctrl[7] = -0.8  # arm2_gripper_act
         
-        # Add small random perturbation to joint positions only (not base or gripper)
+        # Minimal random perturbation - too much causes instability
         if self.np_random is not None:
-            noise = self.np_random.uniform(-0.02, 0.02, size=self.model.nq)
-            # Apply noise to base position (x, y, z)
-            # Keep orientation (quaternion) stable or apply very small noise if desired
-            noise[3:7] = 0.0  # Keep orientation exact for stability
-            
-            # Don't perturb gripper (arm1_gripper is joint 5, qpos index ~11)
-            # Adjust index based on actual model structure if needed, assumig index 11 is correct from previous code
-            noise[11] = 0 
-            
+            noise = self.np_random.uniform(-0.005, 0.005, size=self.model.nq)
+            # Keep base position and orientation stable
+            noise[:7] = 0.0  # No noise on free joint
+            # Don't perturb grippers
+            noise[11] = 0  # arm1_gripper
+            noise[14] = 0  # arm2_gripper
             self.data.qpos[:] += noise
 
-        # DOMAIN RANDOMIZATION: Randomize link masses (robustness)
+        # DOMAIN RANDOMIZATION: Randomize link masses (robustness) - reduced range
         if self.np_random is not None:
-            # Vary mass by +/- 20%
-            random_mass_scale = self.np_random.uniform(0.8, 1.2, size=self.model.nbody)
+            # Vary mass by +/- 10%
+            random_mass_scale = self.np_random.uniform(0.9, 1.1, size=self.model.nbody)
             self.model.body_mass[:] = self.original_masses * random_mass_scale
 
         # Initialize previous action for smoothness calc
