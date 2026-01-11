@@ -1,12 +1,14 @@
 <mujoco model="dual2">
   <compiler angle="radian" meshdir="../assets/parts/"/>
 
-  <option tolerance="1e-10" gravity="0 0 -2.5" iterations="50"/>
+  <!-- Increased iterations and solver settings for stability -->
+  <option tolerance="1e-8" gravity="0 0 -3.0" iterations="100" solver="Newton" integrator="implicit"/>
 
   <size nkey="2"/>
 
   <default>
-    <joint limited="true" armature="0.01" damping="0.5"/>
+    <!-- Increased damping for stability -->
+    <joint limited="true" armature="0.02" damping="1.0"/>
     <geom condim="4" friction="1.5 0.8 0.02"/>
     <general biastype="affine" gainprm="50" biasprm="0 -50 -5"/>
   </default>
@@ -181,14 +183,15 @@
   </contact>
 
   <actuator>
-    <general name="arm1_shoulder_act" joint="arm1_shoulder" ctrlrange="-2.94 0.2" gainprm="100" biasprm="0 -100"/>
-    <general name="arm1_elbow_act" joint="arm1_elbow" ctrlrange="0 3.14" gainprm="80" biasprm="0 -80"/>
-    <general name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" ctrlrange="-3 0.1" gainprm="60" biasprm="0 -60"/>
-    <general name="arm1_wrist_roll_act" joint="arm1_wrist_roll" ctrlrange="-3.0 2.4" gainprm="40" biasprm="0 -40"/>
-    <general name="arm1_gripper_act" joint="arm1_gripper" ctrlrange="-1.4 0.1" gainprm="100" biasprm="0 -100 -10"/>
-    <general name="arm2_shoulder_act" joint="arm2_shoulder" ctrlrange="-1.7 1.3" gainprm="80" biasprm="0 -80"/>
-    <general name="arm2_wrist_roll_act" joint="arm2_wrist_roll" ctrlrange="0 3.14" gainprm="40" biasprm="0 -40"/>
-    <general name="arm2_gripper_act" joint="arm2_gripper" ctrlrange="-0.8 0.7" gainprm="100" biasprm="0 -100 -10"/>
+    <!-- Moderate actuator gains - balanced for stability and force -->
+    <general name="arm1_shoulder_act" joint="arm1_shoulder" ctrlrange="-2.94 0.2" gainprm="120" biasprm="0 -120"/>
+    <general name="arm1_elbow_act" joint="arm1_elbow" ctrlrange="0 3.14" gainprm="100" biasprm="0 -100"/>
+    <general name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" ctrlrange="-3 0.1" gainprm="80" biasprm="0 -80"/>
+    <general name="arm1_wrist_roll_act" joint="arm1_wrist_roll" ctrlrange="-3.0 2.4" gainprm="50" biasprm="0 -50"/>
+    <general name="arm1_gripper_act" joint="arm1_gripper" ctrlrange="-1.4 0.1" gainprm="120" biasprm="0 -120 -12"/>
+    <general name="arm2_shoulder_act" joint="arm2_shoulder" ctrlrange="-1.7 1.3" gainprm="100" biasprm="0 -100"/>
+    <general name="arm2_wrist_roll_act" joint="arm2_wrist_roll" ctrlrange="0 3.14" gainprm="50" biasprm="0 -50"/>
+    <general name="arm2_gripper_act" joint="arm2_gripper" ctrlrange="-0.8 0.7" gainprm="120" biasprm="0 -120 -12"/>
   </actuator>
 
   <sensor>

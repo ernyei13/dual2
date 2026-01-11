@@ -346,9 +346,17 @@ class BrachiationEnv(gym.Env):
                 shift = target_x - keyframe_x
                 self.data.qpos[0] += shift
         
-        # Step a few times to let physics settle
-        for _ in range(50):
+        # Step a few times to let physics settle (fewer steps to prevent instability)
+        for _ in range(10):
             mujoco.mj_step(self.model, self.data)
+            # Check for simulation instability
+            if np.any(np.isnan(self.data.qpos)) or np.any(np.abs(self.data.qpos) > 100):
+                # Reset to keyframe if unstable
+                if self.initial_keyframe is not None:
+                    key_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, self.initial_keyframe)
+                    if key_id >= 0:
+                        mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+                break
         
         # Forward kinematics
         mujoco.mj_forward(self.model, self.data)
@@ -462,17 +470,20 @@ class BrachiationEnv(gym.Env):
     
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
-        ADVANCED MULTI-COMPONENT REWARD FOR BRACHIATION
+        ANTI-REWARD-HACKING REWARD FOR BRACHIATION
         
-        Combines:
-        1. Distance progress toward goal (main objective)
-        2. Height maintenance (stay at bar level)
-        3. Bar reaching reward (get hand close to next bar)
-        4. Grip reward (holding onto bars)
-        5. Swing momentum bonus (encourage pendulum motion)
-        6. Wall clearance bonus (milestone rewards)
-        7. Action smoothness
-        8. Alive bonus (survive = good)
+        Key insight: The robot was reward hacking by just hanging still.
+        Fix: Make forward progress the DOMINANT reward, add time penalty,
+        and make grip reward conditional on movement.
+        
+        Components:
+        1. Forward progress (MAIN - must dominate)
+        2. Velocity bonus (encourage movement)
+        3. Wall clearance bonus (milestone rewards)
+        4. Height maintenance (secondary)
+        5. Grip reward (only if making progress)
+        6. Time penalty (discourage sitting still)
+        7. Success bonus
         """
         info = {}
         
@@ -480,82 +491,93 @@ class BrachiationEnv(gym.Env):
         robot_z = self.data.qpos[2]
         robot_vx = self.data.qvel[0]  # Forward velocity
         
-        # === 1. DISTANCE PROGRESS REWARD ===
+        # Clamp velocity to prevent reward explosion from simulation instability
+        robot_vx = np.clip(robot_vx, -5.0, 5.0)
+        
+        # === 1. DISTANCE PROGRESS REWARD (DOMINANT) ===
         current_distance = self.target_pos[0] - robot_x
         progress = self.prev_distance_to_goal - current_distance
-        forward_reward = progress * 50.0  # Strong reward for forward progress
+        # Clamp progress to reasonable range (max ~15cm per step at 50Hz)
+        progress = np.clip(progress, -0.1, 0.1)
+        # Strong reward for forward progress
+        forward_reward = progress * 100.0
         info["forward_progress"] = progress
         info["current_distance"] = current_distance
         self.prev_distance_to_goal = current_distance
         
-        # === 2. HEIGHT MAINTENANCE REWARD ===
-        target_height = 0.31  # Bar level
-        height_error = abs(robot_z - target_height)
-        # Strong Gaussian-like reward: max at target height
-        height_reward = 1.0 * np.exp(-5.0 * height_error**2)
-        # Add penalty for falling below bar level
-        if robot_z < 0.2:
-            height_reward -= 2.0 * (0.2 - robot_z)  # Penalty increases as it falls
-        info["height_reward"] = height_reward
+        # === 2. VELOCITY BONUS (ENCOURAGE MOVEMENT) ===
+        # Reward forward velocity - don't just sit there!
+        velocity_bonus = 1.0 * max(0, robot_vx)  # Clamped above
+        info["velocity_bonus"] = velocity_bonus
         
-        # === 3. BAR REACHING REWARD ===
-        reaching_reward = 0.0
-        if hasattr(self, 'current_hand_to_wall_dist'):
-            dist = self.current_hand_to_wall_dist
-            # Shaped reward: increases as hand approaches bar
-            if dist < 0.15:
-                reaching_reward = 0.5 * (0.15 - dist) / 0.15
-        info["reaching_reward"] = reaching_reward
-        
-        # === 4. GRIP REWARD ===
-        touch1 = self._get_touch_sensor("arm1_touch")
-        touch2 = self._get_touch_sensor("arm2_touch")
-        # BIG reward for gripping - this is critical!
-        grip_reward = 2.0 * (min(touch1, 1.0) + min(touch2, 1.0))
-        info["grip_reward"] = grip_reward
-        
-        # === 5. SWING MOMENTUM BONUS ===
-        # Encourage forward velocity (pendulum swing)
-        swing_bonus = 0.1 * max(0, robot_vx)  # Only reward forward motion
-        info["swing_bonus"] = swing_bonus
-        
-        # === 6. WALL CLEARANCE BONUS ===
+        # === 3. WALL CLEARANCE BONUS (BIG MILESTONE) ===
         prev_walls = self.walls_cleared
         while (self.walls_cleared < len(self.wall_positions) and 
                robot_x > self.wall_positions[self.walls_cleared] + 0.02):
             self.walls_cleared += 1
         
-        # Big bonus for clearing each wall (milestone reward)
+        # HUGE bonus for clearing each wall - this is the real objective
         walls_just_cleared = self.walls_cleared - prev_walls
-        wall_bonus = walls_just_cleared * 10.0
+        wall_bonus = walls_just_cleared * 100.0
         info["wall_bonus"] = wall_bonus
         info["walls_cleared"] = self.walls_cleared
         
-        # === 7. ACTION SMOOTHNESS ===
-        smoothness_reward = getattr(self, 'smoothness_penalty', 0.0)
-        info["smoothness_reward"] = smoothness_reward
+        # === 4. HEIGHT MAINTENANCE (SECONDARY) ===
+        target_height = 0.31  # Bar level
+        height_error = abs(robot_z - target_height)
+        # Reward for being at bar height
+        height_reward = 0.3 * np.exp(-5.0 * height_error**2)
+        # STRONG penalty for falling below bar level
+        if robot_z < 0.2:
+            height_reward -= 3.0 * (0.2 - robot_z)
+        info["height_reward"] = height_reward
         
-        # === 8. ALIVE BONUS ===
-        # Big constant reward for not falling - survival is key!
-        alive_bonus = 1.0
+        # === 5. GRIP REWARD ===
+        # Reward gripping, but give extra for gripping + moving
+        touch1 = self._get_touch_sensor("arm1_touch")
+        touch2 = self._get_touch_sensor("arm2_touch")
+        is_gripping = (touch1 > 0.01) or (touch2 > 0.01)
+        is_moving = abs(robot_vx) > 0.05  # Moving forward or swinging
+        
+        if is_gripping and is_moving:
+            grip_reward = 0.5  # Good: grip + movement
+        elif is_gripping:
+            grip_reward = 0.1  # Small reward for just holding on
+        else:
+            grip_reward = -1.0  # Strong penalty for not gripping (falling)
+        info["grip_reward"] = grip_reward
+        
+        # === 6. ALIVE BONUS (conditional on height) ===
+        # Only give alive bonus if robot is at a reasonable height
+        if robot_z > 0.15:
+            alive_bonus = 0.2  # Small bonus for staying up
+        else:
+            alive_bonus = 0.0
         info["alive_bonus"] = alive_bonus
         
-        # === ACTION COST ===
-        action_cost = -0.002 * np.sum(np.square(self.data.ctrl))
+        # === 7. TIME PENALTY (ANTI-STALLING) ===
+        # Constant penalty per step to discourage sitting still
+        # But reduced so it doesn't dominate when robot is doing well
+        time_penalty = -0.3
+        info["time_penalty"] = time_penalty
+        
+        # === 7. ACTION COST (REDUCED) ===
+        # Don't penalize action too much - we WANT the robot to move!
+        action_cost = -0.0005 * np.sum(np.square(self.data.ctrl))
         info["action_cost"] = action_cost
         
-        # === SUCCESS BONUS ===
+        # === 8. SUCCESS BONUS ===
         dist_to_target = np.linalg.norm(self.data.qpos[:2] - self.target_pos[:2])
         if dist_to_target < 0.15 and self.walls_cleared >= len(self.wall_positions):
-            success_bonus = 200.0  # Big bonus for completing the course
+            success_bonus = 500.0  # HUGE bonus for completing the course
             info["target_reached"] = True
         else:
             success_bonus = 0.0
         
         # === TOTAL REWARD ===
-        reward = (forward_reward + height_reward + reaching_reward + 
-                  grip_reward + swing_bonus + wall_bonus + 
-                  smoothness_reward + alive_bonus + action_cost + success_bonus)
+        reward = (forward_reward + velocity_bonus + wall_bonus + 
+                  height_reward + grip_reward + alive_bonus + time_penalty + 
+                  action_cost + success_bonus)
         info["total_reward"] = reward
         
         return reward, info
