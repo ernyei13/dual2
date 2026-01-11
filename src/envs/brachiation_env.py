@@ -558,22 +558,21 @@ class BrachiationEnv(gym.Env):
         """Check if episode should terminate."""
         base_pos = self.data.qpos[:3]
         
-        # Terminate if robot falls too low
-        if base_pos[2] < 0.05:  # More lenient
+        # Terminate if robot falls too low (very lenient)
+        if base_pos[2] < -0.1:  # Allow going below ground slightly
             return True
         
-        # Terminate if robot goes too far backwards (more than 50cm back from start)
-        if base_pos[0] < self.initial_base_pos[0] - 0.5:
+        # Terminate if robot goes too far backwards (more than 1m back from start)
+        if base_pos[0] < self.initial_base_pos[0] - 1.0:
             return True
         
-        # Terminate if robot tilts too much (upside down)
+        # Terminate if robot tilts completely upside down
         base_quat = self.data.qpos[3:7]
         up_vec = self._quat_to_up_vec(base_quat)
-        if up_vec[2] < -0.3:  # More lenient
+        if up_vec[2] < -0.8:  # Very lenient - almost completely inverted
             return True
         
         # Success termination - reached target (only if made real progress)
-        # Must be close to target AND have cleared more walls than started with
         dist_to_target = np.linalg.norm(base_pos[:2] - self.target_pos[:2])
         started_near_goal = self.initial_base_pos[0] > 1.5
         if dist_to_target < 0.1 and self.walls_cleared >= len(self.wall_positions) and not started_near_goal:
