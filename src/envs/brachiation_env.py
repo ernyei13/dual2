@@ -56,7 +56,7 @@ class BrachiationEnv(gym.Env):
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
         task_mode: str = "traversal",
-        curriculum_level: int = 5,  # Start at wall 5 (closer to goal)
+        curriculum_level: int = 9,  # Start at wall 9 (closest to goal)
     ):
         """
         Initialize the brachiation environment.
@@ -332,18 +332,17 @@ class BrachiationEnv(gym.Env):
 
         else:
             # TRAVERSAL Curriculum
-            # Keyframe already positions robot at wall 5 (x=0.75)
+            # Keyframe already positions robot at wall 9 (x=1.35)
             # Use curriculum_level to shift from there
-            # Level 5 = stay at keyframe position
-            # Level < 5 = move back (harder)
-            # Level > 5 = move forward (easier)
-            keyframe_wall = 5
+            # Level 9 = stay at keyframe position
+            # Level < 9 = move back (harder)
+            keyframe_wall = 9
             start_wall_idx = self.curriculum_level
             start_wall_idx = max(0, min(9, start_wall_idx))
             
             if start_wall_idx != keyframe_wall:
                 target_x = self.wall_positions[start_wall_idx]
-                keyframe_x = self.wall_positions[keyframe_wall]  # 0.75
+                keyframe_x = self.wall_positions[keyframe_wall]  # 1.35
                 shift = target_x - keyframe_x
                 self.data.qpos[0] += shift
         
@@ -492,8 +491,11 @@ class BrachiationEnv(gym.Env):
         # === 2. HEIGHT MAINTENANCE REWARD ===
         target_height = 0.31  # Bar level
         height_error = abs(robot_z - target_height)
-        # Gaussian-like reward: max at target height
-        height_reward = 0.2 * np.exp(-10.0 * height_error**2)
+        # Strong Gaussian-like reward: max at target height
+        height_reward = 1.0 * np.exp(-5.0 * height_error**2)
+        # Add penalty for falling below bar level
+        if robot_z < 0.2:
+            height_reward -= 2.0 * (0.2 - robot_z)  # Penalty increases as it falls
         info["height_reward"] = height_reward
         
         # === 3. BAR REACHING REWARD ===
@@ -508,8 +510,8 @@ class BrachiationEnv(gym.Env):
         # === 4. GRIP REWARD ===
         touch1 = self._get_touch_sensor("arm1_touch")
         touch2 = self._get_touch_sensor("arm2_touch")
-        # Reward for at least one hand gripping
-        grip_reward = 0.3 * (min(touch1, 1.0) + min(touch2, 1.0))
+        # BIG reward for gripping - this is critical!
+        grip_reward = 2.0 * (min(touch1, 1.0) + min(touch2, 1.0))
         info["grip_reward"] = grip_reward
         
         # === 5. SWING MOMENTUM BONUS ===
@@ -534,8 +536,8 @@ class BrachiationEnv(gym.Env):
         info["smoothness_reward"] = smoothness_reward
         
         # === 8. ALIVE BONUS ===
-        # Small constant reward for not falling
-        alive_bonus = 0.1
+        # Big constant reward for not falling - survival is key!
+        alive_bonus = 1.0
         info["alive_bonus"] = alive_bonus
         
         # === ACTION COST ===

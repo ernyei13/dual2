@@ -1,7 +1,7 @@
 <mujoco model="dual2">
   <compiler angle="radian" meshdir="../assets/parts/"/>
 
-  <option tolerance="1e-10" gravity="0 0 -4.81" iterations="50"/>
+  <option tolerance="1e-10" gravity="0 0 -2.5" iterations="50"/>
 
   <size nkey="2"/>
 
@@ -207,9 +207,8 @@
   </sensor>
 
   <keyframe>
-  <!-- Robot at wall 5 (x=0.75), positioned to grab bar -->
-  <!-- Base at bar level, arm extended to grip -->
-  <key name="hanging" qpos="0.75 0.0 0.28 1 0 0 0 -0.3 0.8 -0.5 0 -1.0 0 0.5 0" ctrl="-0.3 0.8 -0.5 0 -1.0 0 0.5 -0.5"/>
-  <key name="wall1_grip" qpos="0.75 0.0 0.28 1 0 0 0 -0.3 0.8 -0.5 0 -1.0 0 0.5 0" ctrl="-0.3 0.8 -0.5 0 -1.0 0 0.5 -0.5"/>
+  <!-- Robot at wall 9 (x=1.35), at bar level (z=0.31), grippers fully closed -->
+  <key name="hanging" qpos="1.35 0.0 0.31 1 0 0 0 -0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8" ctrl="-0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8"/>
+  <key name="wall1_grip" qpos="1.35 0.0 0.31 1 0 0 0 -0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8" ctrl="-0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8"/>
   </keyframe>
  </mujoco>
