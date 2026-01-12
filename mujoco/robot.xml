@@ -7,8 +7,8 @@
   <size nkey="2"/>
 
   <default>
-    <!-- Increased damping for stability -->
-    <joint limited="true" armature="0.02" damping="1.0"/>
+    <!-- Low damping for fast responsive joints -->
+    <joint limited="true" armature="0.01" damping="0.3"/>
     <geom condim="4" friction="1.5 0.8 0.02"/>
     <general biastype="affine" gainprm="50" biasprm="0 -50 -5"/>
   </default>
@@ -183,15 +183,15 @@
   </contact>
 
   <actuator>
-    <!-- Moderate actuator gains - balanced for stability and force -->
-    <general name="arm1_shoulder_act" joint="arm1_shoulder" ctrlrange="-2.94 0.2" gainprm="120" biasprm="0 -120"/>
-    <general name="arm1_elbow_act" joint="arm1_elbow" ctrlrange="0 3.14" gainprm="100" biasprm="0 -100"/>
-    <general name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" ctrlrange="-3 0.1" gainprm="80" biasprm="0 -80"/>
-    <general name="arm1_wrist_roll_act" joint="arm1_wrist_roll" ctrlrange="-3.0 2.4" gainprm="50" biasprm="0 -50"/>
-    <general name="arm1_gripper_act" joint="arm1_gripper" ctrlrange="-1.4 0.1" gainprm="120" biasprm="0 -120 -12"/>
-    <general name="arm2_shoulder_act" joint="arm2_shoulder" ctrlrange="-1.7 1.3" gainprm="100" biasprm="0 -100"/>
-    <general name="arm2_wrist_roll_act" joint="arm2_wrist_roll" ctrlrange="0 3.14" gainprm="50" biasprm="0 -50"/>
-    <general name="arm2_gripper_act" joint="arm2_gripper" ctrlrange="-0.8 0.7" gainprm="120" biasprm="0 -120 -12"/>
+    <!-- HIGH actuator gains for FAST powerful movements -->
+    <general name="arm1_shoulder_act" joint="arm1_shoulder" ctrlrange="-2.94 0.2" gainprm="250" biasprm="0 -250"/>
+    <general name="arm1_elbow_act" joint="arm1_elbow" ctrlrange="0 3.14" gainprm="200" biasprm="0 -200"/>
+    <general name="arm1_wrist_pitch_act" joint="arm1_wrist_pitch" ctrlrange="-3 0.1" gainprm="150" biasprm="0 -150"/>
+    <general name="arm1_wrist_roll_act" joint="arm1_wrist_roll" ctrlrange="-3.0 2.4" gainprm="100" biasprm="0 -100"/>
+    <general name="arm1_gripper_act" joint="arm1_gripper" ctrlrange="-1.4 0.1" gainprm="200" biasprm="0 -200 -20"/>
+    <general name="arm2_shoulder_act" joint="arm2_shoulder" ctrlrange="-1.7 1.3" gainprm="200" biasprm="0 -200"/>
+    <general name="arm2_wrist_roll_act" joint="arm2_wrist_roll" ctrlrange="0 3.14" gainprm="100" biasprm="0 -100"/>
+    <general name="arm2_gripper_act" joint="arm2_gripper" ctrlrange="-0.8 0.7" gainprm="200" biasprm="0 -200 -20"/>
   </actuator>
 
   <sensor>
@@ -210,8 +210,10 @@
   </sensor>
 
   <keyframe>
-  <!-- Robot at wall 9 (x=1.35), at bar level (z=0.31), grippers fully closed -->
-  <key name="hanging" qpos="1.35 0.0 0.31 1 0 0 0 -0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8" ctrl="-0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8"/>
-  <key name="wall1_grip" qpos="1.35 0.0 0.31 1 0 0 0 -0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8" ctrl="-0.3 0.8 -0.5 0 -1.4 0 0.5 -0.8"/>
+  <!-- Robot hanging IN FRONT of wall (y=0.1) from bar1 at (0.15, 0, 0.31) -->
+  <!-- Base in front of wall, arms reaching up to grip bar -->
+  <!-- qpos: x y z qw qx qy qz arm1_sh arm1_elb arm1_wp arm1_wr arm1_gr arm2_sh arm2_wr arm2_gr -->
+  <key name="hanging" qpos="0.15 0.10 0.09 1 0 0 0 -2.56 1.67 0.50 0 0.5 -2.90 0 0.5" ctrl="-2.56 1.67 0.50 0.5 -2.90 0 0.5 0"/>
+  <key name="wall1_grip" qpos="0.15 0.10 0.09 1 0 0 0 -2.56 1.67 0.50 0 0.5 -2.90 0 0.5" ctrl="-2.56 1.67 0.50 0.5 -2.90 0 0.5 0"/>
   </keyframe>
  </mujoco>

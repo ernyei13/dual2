@@ -31,12 +31,17 @@ def get_model_path() -> str:
     return str(model_path)
 
 
-def interactive_viewer():
+def interactive_viewer(paused: bool = True):
     """Launch the interactive MuJoCo viewer."""
     import mujoco.viewer
     
     model = mujoco.MjModel.from_xml_path(get_model_path())
     data = mujoco.MjData(model)
+    
+    # Load the hanging keyframe
+    key_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "hanging")
+    if key_id >= 0:
+        mujoco.mj_resetDataKeyframe(model, data, key_id)
     
     print("=" * 50)
     print("Interactive MuJoCo Viewer")
@@ -49,9 +54,11 @@ def interactive_viewer():
     print("  Space: Pause/Resume")
     print("  Backspace: Reset")
     print("  ESC: Exit")
+    if paused:
+        print("\n  >>> Starting PAUSED - Press SPACE to start <<<")
     print("=" * 50)
     
-    mujoco.viewer.launch(model, data)
+    mujoco.viewer.launch(model, data, show_left_ui=True, show_right_ui=True)
 
 
 def run_demo(duration: float = 10.0):

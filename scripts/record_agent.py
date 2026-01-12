@@ -24,8 +24,8 @@ def record_agent(model_path, output_path, duration=10.0, fps=30, vec_normalize_p
     model = PPO.load(model_path)
     
     print("Creating environment...")
-    # Use rgb_array mode for recording
-    env = BrachiationEnv(render_mode="rgb_array", curriculum_level=0)
+    # Use rgb_array mode for recording with grasping task mode
+    env = BrachiationEnv(render_mode="rgb_array", task_mode="grasping", max_episode_steps=500)
     
     # Load VecNormalize stats if available
     if vec_normalize_path and Path(vec_normalize_path).exists():

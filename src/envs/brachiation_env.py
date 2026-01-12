@@ -56,7 +56,7 @@ class BrachiationEnv(gym.Env):
         control_freq: int = 50,
         initial_keyframe: Optional[str] = "hanging",
         task_mode: str = "traversal",
-        curriculum_level: int = 9,  # Start at wall 9 (closest to goal)
+        curriculum_level: int = 0,  # Start at wall 0 (first wall)
     ):
         """
         Initialize the brachiation environment.
@@ -313,36 +313,23 @@ class BrachiationEnv(gym.Env):
 
         # CURRICULUM: Shift starting position
         if self.task_mode == "grasping":
-             # Spawn close to a random wall (0-10cm away) -> Changed to 0-2cm for guaranteed reflex demo
-             # Pick a random wall index
-             wall_idx = self.np_random.integers(0, 10)
-             wall_x = self.wall_positions[wall_idx]
-             
-             # Shift robot to be near this wall. 
-             # Keyframe "hanging" approx at 0.2m? 
-             # Let's assume keyframe is suitable for first wall (0.15).
-             # Shift = wall_x - 0.15 + random_offset
-             
-             random_offset_x = self.np_random.uniform(-0.02, 0.0) # Very close spawn!
-             shift = (wall_x - 0.15) + random_offset_x
-             self.data.qpos[0] += shift
-             
-             # Randomize vertical position slightly
-             self.data.qpos[2] += self.np_random.uniform(-0.05, 0.05)
+            # GRASPING MODE: Stay at wall 1 (keyframe position)
+            # No shift - robot starts at keyframe position gripping bar 1
+            pass
 
         else:
             # TRAVERSAL Curriculum
-            # Keyframe already positions robot at wall 9 (x=1.35)
+            # Keyframe positions robot at wall 0 (x=0.15)
             # Use curriculum_level to shift from there
-            # Level 9 = stay at keyframe position
-            # Level < 9 = move back (harder)
-            keyframe_wall = 9
+            # Level 0 = stay at keyframe position (wall 0)
+            # Level > 0 = move forward (easier, closer to goal)
+            keyframe_wall = 0
             start_wall_idx = self.curriculum_level
             start_wall_idx = max(0, min(9, start_wall_idx))
             
             if start_wall_idx != keyframe_wall:
                 target_x = self.wall_positions[start_wall_idx]
-                keyframe_x = self.wall_positions[keyframe_wall]  # 1.35
+                keyframe_x = self.wall_positions[keyframe_wall]  # 0.15
                 shift = target_x - keyframe_x
                 self.data.qpos[0] += shift
         
@@ -469,21 +456,122 @@ class BrachiationEnv(gym.Env):
         return obs, reward, terminated, truncated, info
     
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
+        """Dispatch to appropriate reward function based on task mode."""
+        if self.task_mode == "grasping":
+            return self._compute_grasping_reward()
+        else:
+            return self._compute_traversal_reward()
+    
+    def _compute_grasping_reward(self) -> Tuple[float, Dict[str, float]]:
         """
-        ANTI-REWARD-HACKING REWARD FOR BRACHIATION
+        GRASPING/BALANCING REWARD
         
-        Key insight: The robot was reward hacking by just hanging still.
-        Fix: Make forward progress the DOMINANT reward, add time penalty,
-        and make grip reward conditional on movement.
+        Train the robot to:
+        1. Grip the bar firmly
+        2. Hold itself up (not fall)
+        3. Stay stable (minimal swinging)
+        4. Keep body upright
+        """
+        info = {}
+        
+        robot_x = self.data.qpos[0]
+        robot_z = self.data.qpos[2]
+        robot_vx = self.data.qvel[0]
+        robot_vz = self.data.qvel[2]
+        
+        # Get touch sensors
+        touch1 = self._get_touch_sensor("arm1_touch")
+        touch2 = self._get_touch_sensor("arm2_touch")
+        
+        # === 1. GRIP REWARD (MAIN) ===
+        # Big reward for maintaining grip on the bar
+        grip_strength = min(touch1, 1.0) + min(touch2, 1.0)
+        grip_reward = 3.0 * grip_strength  # Up to 6.0 per step if both gripping
+        info["grip_reward"] = grip_reward
+        info["touch1"] = touch1
+        info["touch2"] = touch2
+        
+        # === 2. HEIGHT REWARD ===
+        # Reward for staying at proper hanging height (base at z=0.09 for straight hang)
+        target_height = 0.09  # Base height when hanging straight below bar
+        height_error = abs(robot_z - target_height)
+        height_reward = 1.0 * np.exp(-10.0 * height_error**2)
+        info["height_reward"] = height_reward
+        
+        # === 3. STABILITY REWARD ===
+        # Penalize excessive movement/swinging (linear velocity)
+        velocity_magnitude = np.sqrt(robot_vx**2 + robot_vz**2)
+        stability_reward = 0.5 * np.exp(-2.0 * velocity_magnitude)
+        info["stability_reward"] = stability_reward
+        
+        # === 3b. ANGULAR VELOCITY PENALTY ===
+        # Mild penalty for rotation to encourage stability (but not too harsh)
+        angular_vel = self.data.qvel[3:6]
+        angular_speed = np.linalg.norm(angular_vel)
+        # Exponential decay penalty - small for low angular speed, caps at -1.0
+        angular_penalty = -1.0 * (1.0 - np.exp(-0.1 * angular_speed))
+        info["angular_penalty"] = angular_penalty
+        
+        # === 4. UPRIGHT REWARD ===
+        # Reward for keeping body orientation stable - CRITICAL
+        base_quat = self.data.qpos[3:7]
+        up_vec = self._quat_to_up_vec(base_quat)
+        # MUCH stronger reward for staying upright, HUGE penalty for inverting
+        if up_vec[2] > 0.5:
+            # Upright: bonus for being stable
+            upright_reward = 4.0 * up_vec[2]  # Up to 4.0 when perfectly upright
+        elif up_vec[2] > 0:
+            # Tilted but not inverted: smaller reward
+            upright_reward = 2.0 * up_vec[2]
+        else:
+            # Inverted: MASSIVE penalty to discourage this
+            upright_reward = 10.0 * up_vec[2]  # Up to -10.0 when fully inverted
+        info["upright_reward"] = upright_reward
+        info["up_vec_z"] = up_vec[2]
+        
+        # === 5. POSITION REWARD ===
+        # Reward for staying near the bar (x=0.15)
+        bar_x = 0.15
+        x_error = abs(robot_x - bar_x)
+        position_reward = 0.3 * np.exp(-5.0 * x_error**2)
+        info["position_reward"] = position_reward
+        
+        # === 6. FALL PENALTY ===
+        # Strong penalty if falling
+        if robot_z < 0.1:
+            fall_penalty = -5.0
+        elif robot_z < 0.15:
+            fall_penalty = -2.0
+        else:
+            fall_penalty = 0.0
+        info["fall_penalty"] = fall_penalty
+        
+        # === 7. GRIP LOSS PENALTY ===
+        # Penalty if not gripping at all
+        if grip_strength < 0.1:
+            no_grip_penalty = -3.0
+        else:
+            no_grip_penalty = 0.0
+        info["no_grip_penalty"] = no_grip_penalty
+        
+        # === TOTAL REWARD ===
+        reward = (grip_reward + height_reward + stability_reward + angular_penalty +
+                  upright_reward + position_reward + fall_penalty + no_grip_penalty)
+        info["total_reward"] = reward
+        
+        return reward, info
+    
+    def _compute_traversal_reward(self) -> Tuple[float, Dict[str, float]]:
+        """
+        TRAVERSAL REWARD - for moving across bars
         
         Components:
-        1. Forward progress (MAIN - must dominate)
-        2. Velocity bonus (encourage movement)
-        3. Wall clearance bonus (milestone rewards)
-        4. Height maintenance (secondary)
-        5. Grip reward (only if making progress)
-        6. Time penalty (discourage sitting still)
-        7. Success bonus
+        1. Forward progress (MAIN)
+        2. Velocity bonus
+        3. Wall clearance bonus
+        4. Height maintenance
+        5. Grip reward
+        6. Time penalty
         """
         info = {}
         
@@ -493,6 +581,10 @@ class BrachiationEnv(gym.Env):
         
         # Clamp velocity to prevent reward explosion from simulation instability
         robot_vx = np.clip(robot_vx, -5.0, 5.0)
+        
+        # Get joint velocities for swing bonus
+        joint_velocities = self.data.qvel[6:]  # Skip base velocities (6 DOF)
+        joint_speed = np.sum(np.abs(joint_velocities))
         
         # === 1. DISTANCE PROGRESS REWARD (DOMINANT) ===
         current_distance = self.target_pos[0] - robot_x
@@ -505,10 +597,15 @@ class BrachiationEnv(gym.Env):
         info["current_distance"] = current_distance
         self.prev_distance_to_goal = current_distance
         
-        # === 2. VELOCITY BONUS (ENCOURAGE MOVEMENT) ===
-        # Reward forward velocity - don't just sit there!
-        velocity_bonus = 1.0 * max(0, robot_vx)  # Clamped above
+        # === 2. VELOCITY BONUS (ENCOURAGE FAST MOVEMENT) ===
+        # Reward forward velocity - move fast!
+        velocity_bonus = 2.0 * max(0, robot_vx)  # Higher weight for speed
         info["velocity_bonus"] = velocity_bonus
+        
+        # === 2b. SWING BONUS (ENCOURAGE JOINT MOVEMENT) ===
+        # Reward for moving joints - don't be lazy!
+        swing_bonus = 0.1 * min(joint_speed, 10.0)  # Cap to prevent instability reward
+        info["swing_bonus"] = swing_bonus
         
         # === 3. WALL CLEARANCE BONUS (BIG MILESTONE) ===
         prev_walls = self.walls_cleared
@@ -561,9 +658,9 @@ class BrachiationEnv(gym.Env):
         time_penalty = -0.3
         info["time_penalty"] = time_penalty
         
-        # === 7. ACTION COST (REDUCED) ===
-        # Don't penalize action too much - we WANT the robot to move!
-        action_cost = -0.0005 * np.sum(np.square(self.data.ctrl))
+        # === 7. ACTION COST (MINIMAL) ===
+        # Very low penalty - we WANT fast aggressive movements!
+        action_cost = -0.0001 * np.sum(np.square(self.data.ctrl))
         info["action_cost"] = action_cost
         
         # === 8. SUCCESS BONUS ===
@@ -575,7 +672,7 @@ class BrachiationEnv(gym.Env):
             success_bonus = 0.0
         
         # === TOTAL REWARD ===
-        reward = (forward_reward + velocity_bonus + wall_bonus + 
+        reward = (forward_reward + velocity_bonus + swing_bonus + wall_bonus + 
                   height_reward + grip_reward + alive_bonus + time_penalty + 
                   action_cost + success_bonus)
         info["total_reward"] = reward
@@ -589,6 +686,14 @@ class BrachiationEnv(gym.Env):
         # Terminate if robot falls too low (very lenient)
         if base_pos[2] < -0.1:  # Allow going below ground slightly
             return True
+        
+        # For grasping mode, be VERY lenient - let robot learn for 100+ steps
+        # Only terminate if robot falls way below ground
+        if self.task_mode == "grasping":
+            # Only terminate if completely fallen through ground
+            if base_pos[2] < -0.5:
+                return True
+            return False
         
         # Terminate if robot goes too far backwards (more than 1m back from start)
         if base_pos[0] < self.initial_base_pos[0] - 1.0:
