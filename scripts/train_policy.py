@@ -50,6 +50,13 @@ class CurriculumCallback(BaseCallback):
         self.success_threshold = success_threshold
         self.window_size = window_size
         self.episode_rewards: List[float] = []
+
+    def _on_training_start(self) -> None:
+        self._apply_curriculum_level()
+
+    def _apply_curriculum_level(self) -> None:
+        self.envs.env_method("set_curriculum_level", self.current_level)
+        self.logger.record("curriculum/level", self.current_level)
         
     def _on_step(self) -> bool:
         # Track episode rewards
@@ -68,8 +75,7 @@ class CurriculumCallback(BaseCallback):
                         if self.verbose > 0:
                             logging.info(f"Curriculum: Advancing to level {self.current_level} (harder)")
                         
-                        # Update environment curriculum level
-                        # Note: This requires the underlying env to support curriculum updates
+                        self._apply_curriculum_level()
                         
         return True
 
@@ -100,6 +106,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-cpu", action="store_true", help="Disable GPU acceleration by forcing CPU for Stable Baselines.")
     parser.add_argument("--n-envs", type=int, default=8, help="Number of parallel environments for training.")
     parser.add_argument("--curriculum-start", type=int, default=0, help="Starting curriculum level (0-9, 0=beginning).")
+    parser.add_argument("--max-episode-steps", type=int, default=10000, help="Maximum steps per episode.")
+    parser.add_argument("--rollout-steps", type=int, default=2048, help="PPO rollout steps per environment.")
+    parser.add_argument("--batch-size", type=int, default=64, help="PPO minibatch size.")
     return parser.parse_args()
 
 
@@ -118,7 +127,12 @@ def visualize_environment(steps: int) -> None:
     env.close()
 
 
-def make_env(rank: int, seed: int, curriculum_level: int) -> Callable[[], Monitor]:
+def make_env(
+    rank: int,
+    seed: int,
+    curriculum_level: int,
+    max_episode_steps: int,
+) -> Callable[[], Monitor]:
     """
     Create a single environment wrapped in Monitor.
     
@@ -132,7 +146,7 @@ def make_env(rank: int, seed: int, curriculum_level: int) -> Callable[[], Monito
             render_mode=None, 
             initial_keyframe="wall1_grip",
             curriculum_level=curriculum_level,
-            max_episode_steps=10000,  # Long episodes for full traversal
+            max_episode_steps=max_episode_steps,
         )
         env.reset(seed=seed + rank)
         return Monitor(env)
@@ -145,7 +159,8 @@ def make_vec_env(
     n_envs: int, 
     seed: int = 0, 
     curriculum_level: int = 8,
-    use_subproc: bool = True
+    use_subproc: bool = True,
+    max_episode_steps: int = 10000,
 ) -> VecNormalize:
     """
     Create vectorized environments with observation normalization.
@@ -156,7 +171,7 @@ def make_vec_env(
         curriculum_level: Starting curriculum level
         use_subproc: Whether to use SubprocVecEnv (parallel) or DummyVecEnv (serial)
     """
-    env_fns = [make_env(i, seed, curriculum_level) for i in range(n_envs)]
+    env_fns = [make_env(i, seed, curriculum_level, max_episode_steps) for i in range(n_envs)]
     
     if use_subproc and n_envs > 1:
         vec_env = SubprocVecEnv(env_fns)
@@ -177,10 +192,14 @@ def make_vec_env(
     return vec_env
 
 
-def evaluate_model(model: PPO, episodes: int) -> None:
+def evaluate_model(model: PPO, episodes: int, max_episode_steps: int) -> None:
     logging.info("Evaluating trained policy")
     returns = []
-    env = BrachiationEnv(render_mode=None, initial_keyframe="wall1_grip")
+    env = BrachiationEnv(
+        render_mode=None,
+        initial_keyframe="wall1_grip",
+        max_episode_steps=max_episode_steps,
+    )
     for ep in range(episodes):
         obs, _ = env.reset()
         total_reward = 0.0
@@ -220,6 +239,7 @@ def main() -> None:
         seed=42,
         curriculum_level=args.curriculum_start,
         use_subproc=True,
+        max_episode_steps=args.max_episode_steps,
     )
     
     # Evaluation environment (single env, no subprocess)
@@ -228,6 +248,7 @@ def main() -> None:
         seed=123,
         curriculum_level=0,  # Evaluate on hardest level
         use_subproc=False,
+        max_episode_steps=args.max_episode_steps,
     )
 
     # Callbacks
@@ -257,8 +278,8 @@ def main() -> None:
         env=train_env,
         # Optimized hyperparameters
         learning_rate=linear_schedule(3e-4),  # Scheduled learning rate
-        n_steps=2048,  # Steps per update (larger = more stable)
-        batch_size=64,  # Minibatch size
+        n_steps=args.rollout_steps,  # Steps per update (larger = more stable)
+        batch_size=args.batch_size,  # Minibatch size
         n_epochs=10,  # Epochs per update
         gamma=0.99,  # Discount factor
         gae_lambda=0.95,  # GAE lambda for advantage estimation
@@ -281,7 +302,7 @@ def main() -> None:
     )
 
     logging.info("Starting training for %d timesteps with %d parallel envs", args.total_timesteps, args.n_envs)
-    logging.info("Effective samples per update: %d", args.n_envs * 2048)
+    logging.info("Effective samples per update: %d", args.n_envs * args.rollout_steps)
     
     model.learn(
         total_timesteps=args.total_timesteps, 
@@ -296,7 +317,7 @@ def main() -> None:
     logging.info("Policy saved to %s", policy_path)
     logging.info("Normalization stats saved to %s", args.output_dir / "vec_normalize.pkl")
 
-    evaluate_model(model, episodes=args.eval_episodes)
+    evaluate_model(model, episodes=args.eval_episodes, max_episode_steps=args.max_episode_steps)
 
     train_env.close()
     eval_env.close()

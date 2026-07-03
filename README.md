@@ -9,10 +9,17 @@ A reinforcement learning project for training a dual-arm robot to traverse walls
 ```bash
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
-### 2. Train the Robot
+### 2. Smoke Test The Environment
+
+```bash
+python scripts/smoke_check.py --steps 10
+pytest -q
+```
+
+### 3. Train the Robot
 
 ```bash
 # Curriculum Training (Recommended)
@@ -28,7 +35,7 @@ python src/main.py --mode train --curriculum-level 4 --total-timesteps 1000000 -
 python src/main.py --mode train --curriculum-level 0 --total-timesteps 5000000 --num-envs 16
 ```
 
-### 3. Evaluate
+### 4. Evaluate
 
 ```bash
 # Watch trained agent
@@ -38,7 +45,7 @@ python src/main.py --mode eval --model-path ./checkpoints/brachiation_final
 python src/main.py --mode eval --model-path ./checkpoints/brachiation_final --record-video
 ```
 
-### 4. Monitor Training
+### 5. Monitor Training
 
 ```bash
 tensorboard --logdir ./logs/tensorboard
@@ -66,9 +73,11 @@ dual2/
 │       └── brachiation_env.py  # Gym environment
 ├── mujoco/
 │   └── robot.xml               # MuJoCo model
+├── tests/                      # Contract tests and smoke coverage
 ├── checkpoints/                # Saved models
 ├── logs/                       # Tensorboard logs
-└── requirements.txt
+├── pyproject.toml              # Package metadata and dev dependencies
+└── requirements.txt            # Legacy pip requirements
 ```
 
 ## How It Works
@@ -85,7 +94,7 @@ dual2/
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - MuJoCo
 - Stable-Baselines3
 - Gymnasium

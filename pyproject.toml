@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dual2"
+version = "0.1.0"
+description = "MuJoCo and Gymnasium environment for dual-arm brachiation experiments."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "gymnasium>=0.29.0",
+  "imageio>=2.31.0",
+  "imageio-ffmpeg>=0.4.8",
+  "matplotlib>=3.7.0",
+  "mujoco>=3.0.0",
+  "numpy>=1.24.0",
+  "rich>=13.0.0",
+  "scipy>=1.10.0",
+  "stable-baselines3>=2.0.0",
+  "tensorboard>=2.14.0",
+  "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.5.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

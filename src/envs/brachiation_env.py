@@ -33,7 +33,8 @@ class BrachiationEnv(gym.Env):
         - Target position (3D)
         - Distance to next wall (1D)
         - Walls cleared count normalized (1D)
-        Total: 40D
+        - Closest hand-to-target-wall vector (3D)
+        Total: 43D
     
     Action Space:
         - Joint position targets for all actuators (8D)
@@ -76,7 +77,7 @@ class BrachiationEnv(gym.Env):
         self.task_mode = task_mode
         self.control_freq = control_freq
         self.initial_keyframe = initial_keyframe
-        self.curriculum_level = curriculum_level
+        self.curriculum_level = 0
         
         # Load MuJoCo model
         model_path = Path(__file__).parent.parent.parent / "mujoco" / "robot.xml"
@@ -93,6 +94,11 @@ class BrachiationEnv(gym.Env):
         # Joint and actuator info
         self.n_actuators = self.model.nu
         self.n_joints = self.model.nq
+        self.actuator_ctrl_ranges = self.model.actuator_ctrlrange.copy()
+        self.actuator_ctrl_low = self.actuator_ctrl_ranges[:, 0]
+        self.actuator_ctrl_high = self.actuator_ctrl_ranges[:, 1]
+        if np.any(self.actuator_ctrl_high <= self.actuator_ctrl_low):
+            raise ValueError("All actuators must define a valid ctrlrange for normalized actions.")
         
         # Get joint limits for action scaling
         self.joint_ranges = self._get_joint_ranges()
@@ -133,6 +139,7 @@ class BrachiationEnv(gym.Env):
         self.wall_height = 0.31  # Height of horizontal bars above ground
         self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
         self.walls_cleared = 0
+        self.set_curriculum_level(curriculum_level)
         
     def _get_joint_ranges(self) -> np.ndarray:
         """Get joint position limits."""
@@ -143,6 +150,21 @@ class BrachiationEnv(gym.Env):
             else:
                 ranges.append(np.array([-np.pi, np.pi]))
         return np.array(ranges)
+
+    def set_curriculum_level(self, curriculum_level: int) -> None:
+        """Set traversal curriculum level for subsequent resets."""
+        self.curriculum_level = int(np.clip(curriculum_level, 0, 9))
+
+    def _normalized_action_to_ctrl(self, action: np.ndarray) -> np.ndarray:
+        """Map normalized policy actions to MuJoCo actuator control targets."""
+        action = np.asarray(action, dtype=np.float64)
+        if action.shape != self.action_space.shape:
+            action = np.reshape(action, self.action_space.shape)
+
+        clipped = np.clip(action, -1.0, 1.0)
+        midpoint = (self.actuator_ctrl_high + self.actuator_ctrl_low) / 2.0
+        half_range = (self.actuator_ctrl_high - self.actuator_ctrl_low) / 2.0
+        return midpoint + clipped * half_range
     
     def _get_obs_dim(self) -> int:
         """Calculate observation dimension."""
@@ -273,6 +295,8 @@ class BrachiationEnv(gym.Env):
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Reset the environment."""
         super().reset(seed=seed)
+        if options is not None and "curriculum_level" in options:
+            self.set_curriculum_level(int(options["curriculum_level"]))
         
         # Reset MuJoCo state
         mujoco.mj_resetData(self.model, self.data)
@@ -376,9 +400,6 @@ class BrachiationEnv(gym.Env):
         # But we need specific arm distances here.
         # Let's re-query or compute simply.
         
-        # Thresholds
-        GRASP_DIST_THRESHOLD = 0.05 # 5cm proximity triggers reflex
-        
         # Arm 1
         touch1 = self._get_touch_sensor("arm1_touch")
         # We need hand-to-wall dist for arm 1 specifically. 
@@ -409,14 +430,18 @@ class BrachiationEnv(gym.Env):
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """Take a step in the environment."""
-        # Scale action from [-1, 1] to joint ranges
+        # Policies emit normalized actions; MuJoCo receives physical control targets.
+        action = np.asarray(action, dtype=np.float64)
+        if action.shape != self.action_space.shape:
+            action = np.reshape(action, self.action_space.shape)
         action = np.clip(action, -1.0, 1.0)
         
         # Apply Bio-Inspired Reflex (Override actions)
-        action = self._apply_grasp_reflex(action)
+        action = self._apply_grasp_reflex(action.copy())
+        ctrl = self._normalized_action_to_ctrl(action)
         
         # Apply action to actuators
-        self.data.ctrl[:] = action
+        self.data.ctrl[:] = ctrl
         
         # Calculate smoothness penalty (before updating previous_action)
         # Penalize large changes in action
