@@ -118,6 +118,13 @@ class BrachiationEnv(gym.Env):
         self.initial_base_pos = None
         self.previous_action = None
         self.prev_distance_to_goal = None  # For distance-based reward
+        self.latched_site_name: str | None = None
+        self.latched_bar_idx: int | None = None
+        self.grip_assist_error = 0.0
+        self.grip_assist_force = 0.0
+        self.grip_assist_stiffness = 350.0
+        self.grip_assist_damping = 12.0
+        self.grip_assist_max_force = 60.0
 
         # Original masses for domain randomization
         self.original_masses = self.model.body_mass.copy()
@@ -200,6 +207,65 @@ class BrachiationEnv(gym.Env):
         self.data.qpos[:3] += delta
         self.data.qvel[:] = 0.0
         mujoco.mj_forward(self.model, self.data)
+
+    def _latch_grip(self, site_name: str, wall_idx: int) -> None:
+        self.latched_site_name = site_name
+        self.latched_bar_idx = int(np.clip(wall_idx, 0, len(self.wall_positions) - 1))
+
+    def _clear_grip_latch(self) -> None:
+        self.latched_site_name = None
+        self.latched_bar_idx = None
+        self.grip_assist_error = 0.0
+        self.grip_assist_force = 0.0
+
+    def _site_velocity(self, site_name: str) -> np.ndarray:
+        site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+        if site_id < 0:
+            return np.zeros(3)
+        jacp = np.zeros((3, self.model.nv))
+        jacr = np.zeros((3, self.model.nv))
+        mujoco.mj_jacSite(self.model, self.data, jacp, jacr, site_id)
+        return jacp @ self.data.qvel
+
+    def _apply_grip_assist(self) -> None:
+        """Apply a virtual closed-hand latch to keep the hand on the bar."""
+        if self.latched_site_name is None or self.latched_bar_idx is None:
+            self.grip_assist_error = 0.0
+            self.grip_assist_force = 0.0
+            return
+
+        site_id = mujoco.mj_name2id(
+            self.model,
+            mujoco.mjtObj.mjOBJ_SITE,
+            self.latched_site_name,
+        )
+        if site_id < 0:
+            self._clear_grip_latch()
+            return
+
+        site_pos = self.data.site_xpos[site_id].copy()
+        bar_center = self._bar_center(self.latched_bar_idx)
+        target = np.array([bar_center[0], site_pos[1], bar_center[2]])
+        error = target - site_pos
+        site_vel = self._site_velocity(self.latched_site_name)
+        force = self.grip_assist_stiffness * error - self.grip_assist_damping * site_vel
+        force_norm = np.linalg.norm(force)
+        if force_norm > self.grip_assist_max_force:
+            force *= self.grip_assist_max_force / force_norm
+            force_norm = self.grip_assist_max_force
+
+        body_id = self.model.site_bodyid[site_id]
+        mujoco.mj_applyFT(
+            self.model,
+            self.data,
+            force,
+            np.zeros(3),
+            site_pos,
+            body_id,
+            self.data.qfrc_applied,
+        )
+        self.grip_assist_error = float(np.linalg.norm(error[[0, 2]]))
+        self.grip_assist_force = float(force_norm)
 
     def _normalized_action_to_ctrl(self, action: np.ndarray) -> np.ndarray:
         """Map normalized policy actions to MuJoCo actuator control targets."""
@@ -353,6 +419,9 @@ class BrachiationEnv(gym.Env):
                     break
         return count
 
+    def _has_bar_grip(self) -> bool:
+        return self.latched_bar_idx is not None or self._bar_contact_count() > 0
+
     def reset(
         self,
         *,
@@ -366,6 +435,7 @@ class BrachiationEnv(gym.Env):
 
         # Reset MuJoCo state
         mujoco.mj_resetData(self.model, self.data)
+        self._clear_grip_latch()
 
         # Load the "hanging" keyframe if it exists
         if self.initial_keyframe is not None:
@@ -429,9 +499,12 @@ class BrachiationEnv(gym.Env):
         self._snap_grip_site_to_bar(start_wall_idx)
         self._close_grippers_in_state()
         self._set_ctrl_to_current_pose()
+        self._latch_grip("arm1_tip", start_wall_idx)
 
         # Step a few times to let physics settle (fewer steps to prevent instability)
         for _ in range(10):
+            self.data.qfrc_applied[:] = 0.0
+            self._apply_grip_assist()
             mujoco.mj_step(self.model, self.data)
             # Check for simulation instability
             if np.any(np.isnan(self.data.qpos)) or np.any(np.abs(self.data.qpos) > 100):
@@ -531,6 +604,8 @@ class BrachiationEnv(gym.Env):
 
         # Step simulation
         for _ in range(self.frame_skip):
+            self.data.qfrc_applied[:] = 0.0
+            self._apply_grip_assist()
             mujoco.mj_step(self.model, self.data)
 
         self.current_step += 1
@@ -589,10 +664,14 @@ class BrachiationEnv(gym.Env):
         grip_strength = min(touch1, 1.0) + min(touch2, 1.0)
         grip_reward = 3.0 * grip_strength  # Up to 6.0 per step if both gripping
         bar_contact_count = self._bar_contact_count()
-        bar_grip_reward = 4.0 if bar_contact_count > 0 else -2.0
+        has_bar_grip = self._has_bar_grip()
+        bar_grip_reward = 4.0 if has_bar_grip else -2.0
         info["grip_reward"] = grip_reward
         info["bar_grip_reward"] = bar_grip_reward
         info["bar_contact_count"] = float(bar_contact_count)
+        info["grip_assist_active"] = float(self.latched_bar_idx is not None)
+        info["grip_assist_error"] = self.grip_assist_error
+        info["grip_assist_force"] = self.grip_assist_force
         info["touch1"] = touch1
         info["touch2"] = touch2
 
@@ -752,7 +831,7 @@ class BrachiationEnv(gym.Env):
         is_gripping = (touch1 > 0.01) or (touch2 > 0.01)
         is_moving = abs(robot_vx) > 0.05  # Moving forward or swinging
         bar_contact_count = self._bar_contact_count()
-        has_bar_contact = bar_contact_count > 0
+        has_bar_grip = self._has_bar_grip()
 
         if is_gripping and is_moving:
             grip_reward = 0.5  # Good: grip + movement
@@ -760,15 +839,18 @@ class BrachiationEnv(gym.Env):
             grip_reward = 0.1  # Small reward for just holding on
         else:
             grip_reward = -1.0  # Strong penalty for not gripping (falling)
-        if has_bar_contact and is_moving:
+        if has_bar_grip and is_moving:
             bar_grip_reward = 2.5
-        elif has_bar_contact:
+        elif has_bar_grip:
             bar_grip_reward = 2.0
         else:
             bar_grip_reward = -1.5
         info["grip_reward"] = grip_reward
         info["bar_grip_reward"] = bar_grip_reward
         info["bar_contact_count"] = float(bar_contact_count)
+        info["grip_assist_active"] = float(self.latched_bar_idx is not None)
+        info["grip_assist_error"] = self.grip_assist_error
+        info["grip_assist_force"] = self.grip_assist_force
 
         # === 6. ALIVE BONUS (conditional on height) ===
         # Only give alive bonus if robot is at a reasonable height

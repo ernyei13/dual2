@@ -140,5 +140,37 @@ def test_reset_starts_with_grip_contact_on_current_bar() -> None:
         _, _, _, _, step_info = env.step(action)
         assert step_info["bar_contact_count"] > 0
         assert step_info["bar_grip_reward"] > 0
+        assert step_info["grip_assist_active"] == 1.0
+    finally:
+        env.close()
+
+
+def test_hold_action_keeps_initial_bar_grip() -> None:
+    env = BrachiationEnv(render_mode=None, initial_keyframe="wall1_grip", curriculum_level=8)
+
+    try:
+        _, info = env.reset(seed=123)
+        action = (
+            2.0
+            * (env.data.ctrl - env.actuator_ctrl_low)
+            / (env.actuator_ctrl_high - env.actuator_ctrl_low)
+            - 1.0
+        ).astype(np.float32)
+        target_bar = env._bar_center(info["walls_cleared"])
+        step_info = {}
+        terminated = False
+        truncated = False
+
+        for _ in range(150):
+            _, _, terminated, truncated, step_info = env.step(action)
+
+        arm1_tip = env._get_site_pos("arm1_tip")
+        radial_error = np.linalg.norm((arm1_tip - target_bar)[[0, 2]])
+        assert not terminated
+        assert not truncated
+        assert env.data.qpos[2] > 0.0
+        assert radial_error < 0.03
+        assert step_info["grip_assist_active"] == 1.0
+        assert step_info["bar_grip_reward"] > 0
     finally:
         env.close()
