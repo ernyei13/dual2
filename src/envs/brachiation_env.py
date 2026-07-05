@@ -148,6 +148,59 @@ class BrachiationEnv(gym.Env):
         """Set traversal curriculum level for subsequent resets."""
         self.curriculum_level = int(np.clip(curriculum_level, 0, 9))
 
+    def _joint_qpos_address(self, joint_name: str) -> int:
+        joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if joint_id < 0:
+            raise ValueError(f"Joint not found: {joint_name}")
+        return self.model.jnt_qposadr[joint_id]
+
+    def _clip_limited_joint_qpos(self) -> None:
+        for joint_id in range(self.model.njnt):
+            if not self.model.jnt_limited[joint_id]:
+                continue
+            qpos_adr = self.model.jnt_qposadr[joint_id]
+            low, high = self.model.jnt_range[joint_id]
+            self.data.qpos[qpos_adr] = np.clip(self.data.qpos[qpos_adr], low, high)
+
+    def _actuated_joint_positions(self) -> np.ndarray:
+        positions = []
+        for actuator_id in range(self.n_actuators):
+            joint_id = self.model.actuator_trnid[actuator_id, 0]
+            qpos_adr = self.model.jnt_qposadr[joint_id]
+            positions.append(self.data.qpos[qpos_adr])
+        return np.asarray(positions)
+
+    def _set_ctrl_to_current_pose(self) -> None:
+        qpos = self._actuated_joint_positions()
+        self.data.ctrl[:] = np.clip(qpos, self.actuator_ctrl_low, self.actuator_ctrl_high)
+
+    def _close_grippers_in_state(self) -> None:
+        arm1_gripper_qpos = self._joint_qpos_address("arm1_gripper")
+        arm2_gripper_qpos = self._joint_qpos_address("arm2_gripper")
+        self.data.qpos[arm1_gripper_qpos] = self.actuator_ctrl_low[4]
+        self.data.qpos[arm2_gripper_qpos] = self.actuator_ctrl_low[7]
+        self.data.ctrl[4] = self.actuator_ctrl_low[4]
+        self.data.ctrl[7] = self.actuator_ctrl_low[7]
+
+    def _bar_center(self, wall_idx: int) -> np.ndarray:
+        wall_idx = int(np.clip(wall_idx, 0, len(self.wall_positions) - 1))
+        return np.array([self.wall_positions[wall_idx], 0.0, self.wall_height])
+
+    def _snap_grip_site_to_bar(self, wall_idx: int, site_name: str = "arm1_tip") -> None:
+        mujoco.mj_forward(self.model, self.data)
+        site_pos = self._get_site_pos(site_name)
+        bar_center = self._bar_center(wall_idx)
+        delta = np.array(
+            [
+                bar_center[0] - site_pos[0],
+                0.0,
+                bar_center[2] - site_pos[2],
+            ]
+        )
+        self.data.qpos[:3] += delta
+        self.data.qvel[:] = 0.0
+        mujoco.mj_forward(self.model, self.data)
+
     def _normalized_action_to_ctrl(self, action: np.ndarray) -> np.ndarray:
         """Map normalized policy actions to MuJoCo actuator control targets."""
         action = np.asarray(action, dtype=np.float64)
@@ -229,14 +282,9 @@ class BrachiationEnv(gym.Env):
         # Walls cleared normalized (0 to 1)
         walls_cleared_norm = self.walls_cleared / len(self.wall_positions)
 
-        # Hand to Wall Vector (for Reaching Reward)
-        # Find target wall
+        # Hand to bar vector for reaching and grasping.
         target_wall_idx = self._find_target_wall_idx()
-        target_wall_x = self.wall_positions[target_wall_idx]
-        # Wall is cuboid size=(0.01, 0.15, 0.15). Pos is center.
-        # Top of wall is pos_z + size_z = 0.15 + 0.15 = 0.3.
-        # We want to grab the top.
-        target_point = np.array([target_wall_x, 0.0, 0.3])
+        target_point = self._bar_center(target_wall_idx)
 
         # Find closest hand (arm1 or arm2)
         dist1 = np.linalg.norm(target_point - arm1_fingertip)
@@ -289,6 +337,22 @@ class BrachiationEnv(gym.Env):
             return self.data.sensordata[sensor_id]
         return 0.0
 
+    def _bar_contact_count(self) -> int:
+        """Count contacts involving any grasp bar."""
+        count = 0
+        for contact_idx in range(self.data.ncon):
+            contact = self.data.contact[contact_idx]
+            for geom_id in (contact.geom1, contact.geom2):
+                geom_name = mujoco.mj_id2name(
+                    self.model,
+                    mujoco.mjtObj.mjOBJ_GEOM,
+                    geom_id,
+                )
+                if geom_name is not None and geom_name.startswith("bar"):
+                    count += 1
+                    break
+        return count
+
     def reset(
         self,
         *,
@@ -313,9 +377,9 @@ class BrachiationEnv(gym.Env):
             if key_id >= 0:
                 mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
 
-        # Ensure BOTH grippers are closed tight for grip
-        self.data.ctrl[4] = -1.0  # arm1_gripper_act
-        self.data.ctrl[7] = -0.8  # arm2_gripper_act
+        self._clip_limited_joint_qpos()
+        self._close_grippers_in_state()
+        self._set_ctrl_to_current_pose()
 
         # Minimal random perturbation - too much causes instability
         if self.np_random is not None:
@@ -337,6 +401,7 @@ class BrachiationEnv(gym.Env):
         self.previous_action = np.zeros(self.n_actuators)
 
         # CURRICULUM: Shift starting position
+        start_wall_idx = 0
         if self.task_mode == "grasping":
             # GRASPING MODE: Stay at wall 1 (keyframe position)
             # No shift - robot starts at keyframe position gripping bar 1
@@ -357,6 +422,13 @@ class BrachiationEnv(gym.Env):
                 keyframe_x = self.wall_positions[keyframe_wall]  # 0.15
                 shift = target_x - keyframe_x
                 self.data.qpos[0] += shift
+
+        self._clip_limited_joint_qpos()
+        self._close_grippers_in_state()
+        self._set_ctrl_to_current_pose()
+        self._snap_grip_site_to_bar(start_wall_idx)
+        self._close_grippers_in_state()
+        self._set_ctrl_to_current_pose()
 
         # Step a few times to let physics settle (fewer steps to prevent instability)
         for _ in range(10):
@@ -516,7 +588,11 @@ class BrachiationEnv(gym.Env):
         # Big reward for maintaining grip on the bar
         grip_strength = min(touch1, 1.0) + min(touch2, 1.0)
         grip_reward = 3.0 * grip_strength  # Up to 6.0 per step if both gripping
+        bar_contact_count = self._bar_contact_count()
+        bar_grip_reward = 4.0 if bar_contact_count > 0 else -2.0
         info["grip_reward"] = grip_reward
+        info["bar_grip_reward"] = bar_grip_reward
+        info["bar_contact_count"] = float(bar_contact_count)
         info["touch1"] = touch1
         info["touch2"] = touch2
 
@@ -591,6 +667,7 @@ class BrachiationEnv(gym.Env):
             + angular_penalty
             + upright_reward
             + position_reward
+            + bar_grip_reward
             + fall_penalty
             + no_grip_penalty
         )
@@ -674,6 +751,8 @@ class BrachiationEnv(gym.Env):
         touch2 = self._get_touch_sensor("arm2_touch")
         is_gripping = (touch1 > 0.01) or (touch2 > 0.01)
         is_moving = abs(robot_vx) > 0.05  # Moving forward or swinging
+        bar_contact_count = self._bar_contact_count()
+        has_bar_contact = bar_contact_count > 0
 
         if is_gripping and is_moving:
             grip_reward = 0.5  # Good: grip + movement
@@ -681,7 +760,15 @@ class BrachiationEnv(gym.Env):
             grip_reward = 0.1  # Small reward for just holding on
         else:
             grip_reward = -1.0  # Strong penalty for not gripping (falling)
+        if has_bar_contact and is_moving:
+            bar_grip_reward = 2.5
+        elif has_bar_contact:
+            bar_grip_reward = 2.0
+        else:
+            bar_grip_reward = -1.5
         info["grip_reward"] = grip_reward
+        info["bar_grip_reward"] = bar_grip_reward
+        info["bar_contact_count"] = float(bar_contact_count)
 
         # === 6. ALIVE BONUS (conditional on height) ===
         # Only give alive bonus if robot is at a reasonable height
@@ -718,6 +805,7 @@ class BrachiationEnv(gym.Env):
             + wall_bonus
             + height_reward
             + grip_reward
+            + bar_grip_reward
             + alive_bonus
             + time_penalty
             + action_cost

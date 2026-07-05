@@ -108,3 +108,33 @@ def test_reset_options_can_override_curriculum_level() -> None:
         assert info["walls_cleared"] >= 7
     finally:
         env.close()
+
+
+def test_reset_starts_with_grip_contact_on_current_bar() -> None:
+    env = BrachiationEnv(render_mode=None, initial_keyframe="wall1_grip", curriculum_level=8)
+
+    try:
+        _, info = env.reset(seed=123)
+        target_bar = f"bar{info['walls_cleared'] + 1}"
+        contact_geoms = set()
+        for contact_idx in range(env.data.ncon):
+            contact = env.data.contact[contact_idx]
+            for geom_id in (contact.geom1, contact.geom2):
+                geom_name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
+                if geom_name is not None:
+                    contact_geoms.add(geom_name)
+
+        assert target_bar in contact_geoms
+        assert env._get_touch_sensor("arm1_touch") > 0.01
+
+        action = (
+            2.0
+            * (env.data.ctrl - env.actuator_ctrl_low)
+            / (env.actuator_ctrl_high - env.actuator_ctrl_low)
+            - 1.0
+        ).astype(np.float32)
+        _, _, _, _, step_info = env.step(action)
+        assert step_info["bar_contact_count"] > 0
+        assert step_info["bar_grip_reward"] > 0
+    finally:
+        env.close()
