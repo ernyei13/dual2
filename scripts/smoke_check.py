@@ -4,13 +4,8 @@
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
 
 import numpy as np
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.envs.brachiation_env import BrachiationEnv
 
@@ -23,8 +18,18 @@ def assert_finite(name: str, value: np.ndarray | float) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a short headless environment smoke check.")
-    parser.add_argument("--steps", type=int, default=10, help="Maximum number of random steps to run.")
-    parser.add_argument("--seed", type=int, default=123, help="Random seed for deterministic actions.")
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=10,
+        help="Maximum number of random steps to run.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=123,
+        help="Random seed for deterministic actions.",
+    )
     parser.add_argument(
         "--task",
         choices=["traversal", "grasping"],

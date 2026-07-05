@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import mujoco
 import numpy as np
 
+import mujoco
 from src.envs.brachiation_env import BrachiationEnv
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,8 +65,12 @@ def test_normalized_actions_map_to_actuator_control_ranges() -> None:
         high_action = np.full(env.action_space.shape, 1.0, dtype=np.float32)
         zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
 
-        np.testing.assert_allclose(env._normalized_action_to_ctrl(low_action), env.actuator_ctrl_low)
-        np.testing.assert_allclose(env._normalized_action_to_ctrl(high_action), env.actuator_ctrl_high)
+        np.testing.assert_allclose(
+            env._normalized_action_to_ctrl(low_action), env.actuator_ctrl_low
+        )
+        np.testing.assert_allclose(
+            env._normalized_action_to_ctrl(high_action), env.actuator_ctrl_high
+        )
         np.testing.assert_allclose(
             env._normalized_action_to_ctrl(zero_action),
             (env.actuator_ctrl_low + env.actuator_ctrl_high) / 2.0,

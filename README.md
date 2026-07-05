@@ -26,13 +26,19 @@ pytest -q
 # Start with Level 8 (easy: 2 walls to goal), decrease level as agent improves
 
 # Stage 1: Easy (Wall 8 → Goal)
-python src/main.py --mode train --curriculum-level 8 --total-timesteps 500000 --num-envs 16
+python scripts/train_policy.py --algo ppo --curriculum-start 8 --total-timesteps 500000 --n-envs 8
 
 # Stage 2: Medium (Wall 4 → Goal)
-python src/main.py --mode train --curriculum-level 4 --total-timesteps 1000000 --num-envs 16
+python scripts/train_policy.py --algo ppo --curriculum-start 4 --total-timesteps 1000000 --n-envs 8
 
 # Stage 3: Hard (Wall 0 → Goal - full course)
-python src/main.py --mode train --curriculum-level 0 --total-timesteps 5000000 --num-envs 16
+python scripts/train_policy.py --algo ppo --curriculum-start 0 --total-timesteps 5000000 --n-envs 8
+
+# Off-policy continuous-control experiments
+python scripts/train_policy.py --algo sac --curriculum-start 8 --total-timesteps 500000 --n-envs 4
+python scripts/train_policy.py --algo td3 --curriculum-start 8 --total-timesteps 500000 --n-envs 4
+python scripts/train_policy.py --algo tqc --curriculum-start 8 --total-timesteps 500000 --n-envs 4
+python scripts/train_policy.py --algo crossq --curriculum-start 8 --total-timesteps 500000 --n-envs 4
 ```
 
 ### 4. Evaluate
@@ -55,13 +61,14 @@ tensorboard --logdir ./logs/tensorboard
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--mode` | `viewer` | `viewer`, `demo`, `train`, `eval` |
-| `--curriculum-level` | `8` | Starting wall (0-9). Higher = closer to goal = easier |
-| `--total-timesteps` | `1000000` | Training duration |
-| `--num-envs` | `4` | Parallel environments |
-| `--headless` | `false` | No visualization (faster training) |
-| `--model-path` | - | Path to model for evaluation |
-| `--record-video` | `false` | Save evaluation video |
+| `--algo` | `ppo` | Training algorithm: `ppo`, `sac`, `td3`, `tqc`, or `crossq` |
+| `--curriculum-start` | `0` | Starting wall (0-9). Higher = closer to goal = easier |
+| `--total-timesteps` | `500000` | Training duration |
+| `--n-envs` | `8` | Parallel environments |
+| `--max-episode-steps` | `10000` | Episode time limit |
+| `--rollout-steps` | `2048` | PPO rollout length |
+| `--learning-starts` | `1000` | Off-policy replay warmup steps |
+| `--output-dir` | `./checkpoints/train_policy` | Checkpoints, logs, and normalization stats |
 
 ## Project Structure
 
