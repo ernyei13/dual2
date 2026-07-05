@@ -86,6 +86,19 @@ class CurriculumCallback(BaseCallback):
         return True
 
 
+class RenderCallback(BaseCallback):
+    """Render a single headed environment during training."""
+
+    def __init__(self, render_every: int = 1) -> None:
+        super().__init__()
+        self.render_every = max(render_every, 1)
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.render_every == 0:
+            self.training_env.env_method("render")
+        return True
+
+
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
     """
     Linear learning rate schedule.
@@ -147,6 +160,17 @@ def parse_args() -> argparse.Namespace:
         "--force-cpu",
         action="store_true",
         help="Disable GPU acceleration by forcing CPU for Stable Baselines.",
+    )
+    parser.add_argument(
+        "--render-training",
+        action="store_true",
+        help="Open the MuJoCo viewer and render the training environment.",
+    )
+    parser.add_argument(
+        "--render-every",
+        type=int,
+        default=1,
+        help="Render every N training callback steps when --render-training is set.",
     )
     parser.add_argument(
         "--n-envs", type=int, default=8, help="Number of parallel environments for training."
@@ -215,6 +239,7 @@ def make_env(
     seed: int,
     curriculum_level: int,
     max_episode_steps: int,
+    render_mode: str | None = None,
 ) -> Callable[[], Monitor]:
     """
     Create a single environment wrapped in Monitor.
@@ -227,7 +252,7 @@ def make_env(
 
     def _init() -> Monitor:
         env = BrachiationEnv(
-            render_mode=None,
+            render_mode=render_mode,
             initial_keyframe="wall1_grip",
             curriculum_level=curriculum_level,
             max_episode_steps=max_episode_steps,
@@ -245,6 +270,7 @@ def make_vec_env(
     curriculum_level: int = 8,
     use_subproc: bool = True,
     max_episode_steps: int = 10000,
+    render_mode: str | None = None,
 ) -> VecNormalize:
     """
     Create vectorized environments with observation normalization.
@@ -255,7 +281,10 @@ def make_vec_env(
         curriculum_level: Starting curriculum level
         use_subproc: Whether to use SubprocVecEnv (parallel) or DummyVecEnv (serial)
     """
-    env_fns = [make_env(i, seed, curriculum_level, max_episode_steps) for i in range(n_envs)]
+    env_fns = [
+        make_env(i, seed, curriculum_level, max_episode_steps, render_mode=render_mode)
+        for i in range(n_envs)
+    ]
 
     if use_subproc and n_envs > 1:
         vec_env = SubprocVecEnv(env_fns)
@@ -387,6 +416,9 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if args.render_training and args.n_envs != 1:
+        logging.info("Forcing --n-envs 1 because headed training can render one viewer.")
+        args.n_envs = 1
 
     if args.visualize:
         try:
@@ -400,8 +432,9 @@ def main() -> None:
         n_envs=args.n_envs,
         seed=42,
         curriculum_level=args.curriculum_start,
-        use_subproc=True,
+        use_subproc=not args.render_training,
         max_episode_steps=args.max_episode_steps,
+        render_mode="human" if args.render_training else None,
     )
 
     # Evaluation environment (single env, no subprocess)
@@ -444,9 +477,13 @@ def main() -> None:
     if args.algo == "ppo":
         logging.info("Effective samples per PPO update: %d", args.n_envs * args.rollout_steps)
 
+    callbacks: list[BaseCallback] = [eval_callback, curriculum_callback]
+    if args.render_training:
+        callbacks.append(RenderCallback(render_every=args.render_every))
+
     model.learn(
         total_timesteps=args.total_timesteps,
-        callback=[eval_callback, curriculum_callback],
+        callback=callbacks,
         progress_bar=True,
     )
 
