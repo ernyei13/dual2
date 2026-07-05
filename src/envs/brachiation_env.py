@@ -127,7 +127,7 @@ class BrachiationEnv(gym.Env):
         self.renderer = None
 
         # Wall obstacle course setup
-        # 10 walls at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
+        # 10 bar supports at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
         self.wall_positions = np.array([0.15 + 0.15 * i for i in range(10)])
         self.wall_height = 0.31  # Height of horizontal bars above ground
         self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
