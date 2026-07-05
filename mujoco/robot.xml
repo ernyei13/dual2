@@ -2,7 +2,7 @@
   <compiler angle="radian" meshdir="../assets/parts/"/>
 
   <!-- Increased iterations and solver settings for stability -->
-  <option tolerance="1e-8" gravity="0 0 -3.0" iterations="100" solver="Newton" integrator="implicit"/>
+  <option tolerance="1e-8" gravity="0 0 -9.81" iterations="100" solver="Newton" integrator="implicit"/>
 
   <size nkey="2"/>
 
@@ -81,6 +81,12 @@
               <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" material="dark_gray" mesh="sts3215_servo"/>
               <geom pos="0.0073 -0.0001 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" material="white" mesh="driven_horn"/>
               <site name="arm1_tip" pos="-0.0029 -0.0 -0.098" size="0.005" rgba="1 0.3 0 0.8"/>
+              <geom name="arm1_hook_top" fromto="0.02426 0.00598 -0.13897 0.00971 -0.04764 -0.09318" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+              <geom name="arm1_hook_left" fromto="-0.00512 0.01119 -0.13592 -0.01806 -0.03647 -0.09522" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+              <geom name="arm1_hook_right" fromto="0.02630 0.02177 -0.11354 0.01336 -0.02590 -0.07284" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+              <geom name="arm1_hook_lower_left" fromto="-0.00941 0.01838 -0.12258 -0.02073 -0.02333 -0.08696" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
+              <geom name="arm1_hook_lower_right" fromto="0.01259 0.02578 -0.10691 0.00127 -0.01593 -0.07130" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
+              <geom name="arm1_hook_bottom" fromto="-0.00232 0.02427 -0.11028 -0.01284 -0.01446 -0.07721" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
               <body name="arm1_gripper" pos="0.0198 0.0186 -0.023625" quat="0.525396 0.525398 -0.473241 0.473243">
                 <inertial pos="-0.00739035 -0.0295297 0.0192843" quat="0.689904 0.712368 -0.0928179 -0.0891538" mass="0.0252688" diaginertia="1.38563e-05 1.12152e-05 3.72291e-06"/>
                 <joint name="arm1_gripper" pos="0 0 0" axis="0 0 1" range="-1.46644 0.104359"/>
@@ -107,6 +113,12 @@
           <geom pos="0.0198 0.02025 -0.023625" quat="0.707105 -0.707108 0 0" type="mesh" material="silver" mesh="socket_button_head_screw_m3x0_5_x_5__3d0b7d67b03d7dab03d7e71c432bce35"/>
           <geom pos="0.0198 -0.0178 -0.023625" quat="1.32679e-06 1 0 0" type="mesh" material="white" mesh="passive_horn"/>
           <site name="arm2_tip" pos="-0.0029 -0.0 -0.098" size="0.005" rgba="1 0.3 0 0.8"/>
+          <geom name="arm2_hook_top" fromto="0.02426 0.00598 -0.13897 0.00971 -0.04764 -0.09318" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+          <geom name="arm2_hook_left" fromto="-0.00512 0.01119 -0.13592 -0.01806 -0.03647 -0.09522" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+          <geom name="arm2_hook_right" fromto="0.02630 0.02177 -0.11354 0.01336 -0.02590 -0.07284" size="0.012" type="capsule" material="green" friction="4 1 0.02"/>
+          <geom name="arm2_hook_lower_left" fromto="-0.00941 0.01838 -0.12258 -0.02073 -0.02333 -0.08696" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
+          <geom name="arm2_hook_lower_right" fromto="0.01259 0.02578 -0.10691 0.00127 -0.01593 -0.07130" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
+          <geom name="arm2_hook_bottom" fromto="-0.00232 0.02427 -0.11028 -0.01284 -0.01446 -0.07721" size="0.010" type="capsule" material="green" friction="4 1 0.02"/>
           <body name="arm2_gripper" pos="0.0198 0.0186 -0.023625" quat="0.644246 0.644248 -0.291454 0.291455">
             <inertial pos="-0.00739035 -0.0295297 0.0192843" quat="0.689904 0.712368 -0.0928179 -0.0891538" mass="0.0252688" diaginertia="1.38563e-05 1.12152e-05 3.72291e-06"/>
             <joint name="arm2_gripper" pos="0 0 0" axis="0 0 1" range="-0.849688 0.721109"/>
@@ -117,52 +129,52 @@
     </body>
     <!-- Wall 1 with horizontal bar at top for grasping -->
     <body name="wall1" pos="0.15 0 0.15">
-      <geom name="wall1" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall1" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar1" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 2 with horizontal bar -->
     <body name="wall2" pos="0.3 0 0.15">
-      <geom name="wall2" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall2" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar2" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 3 with horizontal bar -->
     <body name="wall3" pos="0.45 0 0.15">
-      <geom name="wall3" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall3" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar3" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 4 with horizontal bar -->
     <body name="wall4" pos="0.6 0 0.15">
-      <geom name="wall4" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall4" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar4" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 5 with horizontal bar -->
     <body name="wall5" pos="0.75 0 0.15">
-      <geom name="wall5" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall5" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar5" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 6 with horizontal bar -->
     <body name="wall6" pos="0.9 0 0.15">
-      <geom name="wall6" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall6" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar6" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 7 with horizontal bar -->
     <body name="wall7" pos="1.05 0 0.15">
-      <geom name="wall7" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall7" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar7" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 8 with horizontal bar -->
     <body name="wall8" pos="1.2 0 0.15">
-      <geom name="wall8" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall8" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar8" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 9 with horizontal bar -->
     <body name="wall9" pos="1.35 0 0.15">
-      <geom name="wall9" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall9" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar9" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <!-- Wall 10 with horizontal bar -->
     <body name="wall10" pos="1.5 0 0.15">
-      <geom name="wall10" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" rgba="0.6 0.3 0.2 1"/>
+      <geom name="wall10" pos="0 -0.14 0" size="0.01 0.01 0.15" type="box" contype="0" conaffinity="0" rgba="0.6 0.3 0.2 1"/>
       <geom name="bar10" pos="0 0 0.16" quat="0.70710678 0.70710678 0 0" size="0.012 0.12" type="cylinder" rgba="0.4 0.4 0.4 1" friction="2 1 0.01"/>
     </body>
     <body name="target" pos="1.7 0 0.05">

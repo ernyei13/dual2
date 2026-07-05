@@ -16,10 +16,29 @@ def test_mujoco_model_loads_required_contract_names() -> None:
 
     assert model.nu == 8
     assert model.nq >= 15
+    np.testing.assert_allclose(model.opt.gravity, np.array([0.0, 0.0, -9.81]))
 
     required_sites = ["arm1_tip", "arm2_tip", "target_site"]
     for site in required_sites:
         assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, site) >= 0
+
+    required_grip_geoms = [
+        "arm1_hook_top",
+        "arm1_hook_left",
+        "arm1_hook_right",
+        "arm1_hook_bottom",
+        "arm2_hook_top",
+        "arm2_hook_left",
+        "arm2_hook_right",
+        "arm2_hook_bottom",
+    ]
+    for geom in required_grip_geoms:
+        assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, geom) >= 0
+
+    for wall_idx in range(1, 11):
+        geom_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, f"wall{wall_idx}")
+        assert model.geom_contype[geom_id] == 0
+        assert model.geom_conaffinity[geom_id] == 0
 
     required_sensors = ["arm1_touch", "arm2_touch", "base_pos", "base_quat"]
     for sensor in required_sensors:
@@ -128,8 +147,13 @@ def test_reset_starts_with_grip_contact_on_current_bar() -> None:
                         wall_contact_geoms.add(geom_name)
 
         assert target_bar in contact_geoms
+        assert any(geom_name.startswith("arm1_hook_") for geom_name in contact_geoms)
         assert not wall_contact_geoms
         assert env._get_touch_sensor("arm1_touch") > 0.01
+        bar_center = env._bar_center(info["walls_cleared"])
+        arm1_tip = env._get_site_pos("arm1_tip")
+        assert abs(arm1_tip[1] - bar_center[1]) < 0.005
+        assert arm1_tip[2] < bar_center[2]
 
         action = (
             2.0
@@ -156,7 +180,7 @@ def test_hold_action_keeps_initial_bar_grip() -> None:
             / (env.actuator_ctrl_high - env.actuator_ctrl_low)
             - 1.0
         ).astype(np.float32)
-        target_bar = env._bar_center(info["walls_cleared"])
+        target_grip = env._bar_grip_target(info["walls_cleared"])
         step_info = {}
         terminated = False
         truncated = False
@@ -165,11 +189,13 @@ def test_hold_action_keeps_initial_bar_grip() -> None:
             _, _, terminated, truncated, step_info = env.step(action)
 
         arm1_tip = env._get_site_pos("arm1_tip")
-        radial_error = np.linalg.norm((arm1_tip - target_bar)[[0, 2]])
+        radial_error = np.linalg.norm((arm1_tip - target_grip)[[0, 2]])
         assert not terminated
         assert not truncated
         assert env.data.qpos[2] > 0.0
         assert radial_error < 0.03
+        assert abs(arm1_tip[1] - target_grip[1]) < 0.01
+        assert step_info["bar_contact_count"] > 0
         assert step_info["grip_assist_active"] == 1.0
         assert step_info["bar_grip_reward"] > 0
     finally:

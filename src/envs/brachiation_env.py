@@ -137,6 +137,7 @@ class BrachiationEnv(gym.Env):
         # 10 bar supports at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
         self.wall_positions = np.array([0.15 + 0.15 * i for i in range(10)])
         self.wall_height = 0.31  # Height of horizontal bars above ground
+        self.bar_radius = 0.012
         self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
         self.walls_cleared = 0
         self.set_curriculum_level(curriculum_level)
@@ -193,15 +194,25 @@ class BrachiationEnv(gym.Env):
         wall_idx = int(np.clip(wall_idx, 0, len(self.wall_positions) - 1))
         return np.array([self.wall_positions[wall_idx], 0.0, self.wall_height])
 
+    def _bar_grip_target(self, wall_idx: int) -> np.ndarray:
+        bar_center = self._bar_center(wall_idx)
+        return np.array(
+            [
+                bar_center[0],
+                bar_center[1],
+                bar_center[2] - self.bar_radius,
+            ]
+        )
+
     def _snap_grip_site_to_bar(self, wall_idx: int, site_name: str = "arm1_tip") -> None:
         mujoco.mj_forward(self.model, self.data)
         site_pos = self._get_site_pos(site_name)
-        bar_center = self._bar_center(wall_idx)
+        grip_target = self._bar_grip_target(wall_idx)
         delta = np.array(
             [
-                bar_center[0] - site_pos[0],
-                0.0,
-                bar_center[2] - site_pos[2],
+                grip_target[0] - site_pos[0],
+                grip_target[1] - site_pos[1],
+                grip_target[2] - site_pos[2],
             ]
         )
         self.data.qpos[:3] += delta
@@ -244,8 +255,7 @@ class BrachiationEnv(gym.Env):
             return
 
         site_pos = self.data.site_xpos[site_id].copy()
-        bar_center = self._bar_center(self.latched_bar_idx)
-        target = np.array([bar_center[0], site_pos[1], bar_center[2]])
+        target = self._bar_grip_target(self.latched_bar_idx)
         error = target - site_pos
         site_vel = self._site_velocity(self.latched_site_name)
         force = self.grip_assist_stiffness * error - self.grip_assist_damping * site_vel
@@ -420,7 +430,7 @@ class BrachiationEnv(gym.Env):
         return count
 
     def _has_bar_grip(self) -> bool:
-        return self.latched_bar_idx is not None or self._bar_contact_count() > 0
+        return self._bar_contact_count() > 0
 
     def reset(
         self,
