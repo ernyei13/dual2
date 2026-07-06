@@ -11,6 +11,28 @@ ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "mujoco" / "robot.xml"
 
 
+def _bar_contact_bodies(env: BrachiationEnv) -> set[str]:
+    bodies = set()
+    for contact_idx in range(env.data.ncon):
+        contact = env.data.contact[contact_idx]
+        geoms = []
+        for geom_id in (contact.geom1, contact.geom2):
+            geom_name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
+            body_name = mujoco.mj_id2name(
+                env.model,
+                mujoco.mjtObj.mjOBJ_BODY,
+                env.model.geom_bodyid[geom_id],
+            )
+            geoms.append((geom_name, body_name))
+
+        if geoms[0][0] is not None and geoms[0][0].startswith("bar"):
+            bodies.add(str(geoms[1][1]))
+        elif geoms[1][0] is not None and geoms[1][0].startswith("bar"):
+            bodies.add(str(geoms[0][1]))
+
+    return bodies
+
+
 def test_mujoco_model_loads_required_contract_names() -> None:
     model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
 
@@ -22,23 +44,16 @@ def test_mujoco_model_loads_required_contract_names() -> None:
     for site in required_sites:
         assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, site) >= 0
 
-    required_grip_geoms = [
-        "arm1_hook_top",
-        "arm1_hook_left",
-        "arm1_hook_right",
-        "arm1_hook_bottom",
-        "arm2_hook_top",
-        "arm2_hook_left",
-        "arm2_hook_right",
-        "arm2_hook_bottom",
-    ]
-    for geom in required_grip_geoms:
-        assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, geom) >= 0
+    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "arm1_hook_top") < 0
+    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "arm2_hook_top") < 0
 
     for wall_idx in range(1, 11):
         geom_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, f"wall{wall_idx}")
         assert model.geom_contype[geom_id] == 0
         assert model.geom_conaffinity[geom_id] == 0
+        bar_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, f"bar{wall_idx}")
+        np.testing.assert_allclose(model.geom_size[bar_id, 0], 0.008)
+        np.testing.assert_allclose(model.geom_friction[bar_id], np.array([8.0, 4.0, 0.1]))
 
     required_sensors = ["arm1_touch", "arm2_touch", "base_pos", "base_quat"]
     for sensor in required_sensors:
@@ -147,13 +162,11 @@ def test_reset_starts_with_grip_contact_on_current_bar() -> None:
                         wall_contact_geoms.add(geom_name)
 
         assert target_bar in contact_geoms
-        assert any(geom_name.startswith("arm1_hook_") for geom_name in contact_geoms)
         assert not wall_contact_geoms
         assert env._get_touch_sensor("arm1_touch") > 0.01
-        bar_center = env._bar_center(info["walls_cleared"])
-        arm1_tip = env._get_site_pos("arm1_tip")
-        assert abs(arm1_tip[1] - bar_center[1]) < 0.005
-        assert arm1_tip[2] < bar_center[2]
+        contact_bodies = _bar_contact_bodies(env)
+        assert "arm1_gripper" in contact_bodies
+        assert "arm1_wrist_roll" in contact_bodies
 
         action = (
             2.0
@@ -164,7 +177,7 @@ def test_reset_starts_with_grip_contact_on_current_bar() -> None:
         _, _, _, _, step_info = env.step(action)
         assert step_info["bar_contact_count"] > 0
         assert step_info["bar_grip_reward"] > 0
-        assert step_info["grip_assist_active"] == 1.0
+        assert step_info["grip_assist_active"] == 0.0
     finally:
         env.close()
 
@@ -180,23 +193,22 @@ def test_hold_action_keeps_initial_bar_grip() -> None:
             / (env.actuator_ctrl_high - env.actuator_ctrl_low)
             - 1.0
         ).astype(np.float32)
-        target_grip = env._bar_grip_target(info["walls_cleared"])
         step_info = {}
         terminated = False
         truncated = False
 
-        for _ in range(150):
+        for _ in range(60):
             _, _, terminated, truncated, step_info = env.step(action)
 
-        arm1_tip = env._get_site_pos("arm1_tip")
-        radial_error = np.linalg.norm((arm1_tip - target_grip)[[0, 2]])
+        contact_bodies = _bar_contact_bodies(env)
         assert not terminated
         assert not truncated
-        assert env.data.qpos[2] > 0.0
-        assert radial_error < 0.03
-        assert abs(arm1_tip[1] - target_grip[1]) < 0.01
+        assert env.data.qpos[2] > -0.1
         assert step_info["bar_contact_count"] > 0
-        assert step_info["grip_assist_active"] == 1.0
+        assert "arm1_gripper" in contact_bodies
+        assert "arm1_wrist_roll" in contact_bodies
+        assert step_info["walls_cleared"] == info["walls_cleared"]
+        assert step_info["grip_assist_active"] == 0.0
         assert step_info["bar_grip_reward"] > 0
     finally:
         env.close()

@@ -118,13 +118,8 @@ class BrachiationEnv(gym.Env):
         self.initial_base_pos = None
         self.previous_action = None
         self.prev_distance_to_goal = None  # For distance-based reward
-        self.latched_site_name: str | None = None
-        self.latched_bar_idx: int | None = None
         self.grip_assist_error = 0.0
         self.grip_assist_force = 0.0
-        self.grip_assist_stiffness = 350.0
-        self.grip_assist_damping = 12.0
-        self.grip_assist_max_force = 60.0
 
         # Original masses for domain randomization
         self.original_masses = self.model.body_mass.copy()
@@ -137,7 +132,7 @@ class BrachiationEnv(gym.Env):
         # 10 bar supports at x = 0.15, 0.30, 0.45, ..., 1.50 (15cm apart)
         self.wall_positions = np.array([0.15 + 0.15 * i for i in range(10)])
         self.wall_height = 0.31  # Height of horizontal bars above ground
-        self.bar_radius = 0.012
+        self.bar_radius = 0.008
         self.target_pos = np.array([1.7, 0.0, 0.05])  # Target after all walls
         self.walls_cleared = 0
         self.set_curriculum_level(curriculum_level)
@@ -182,14 +177,6 @@ class BrachiationEnv(gym.Env):
         qpos = self._actuated_joint_positions()
         self.data.ctrl[:] = np.clip(qpos, self.actuator_ctrl_low, self.actuator_ctrl_high)
 
-    def _close_grippers_in_state(self) -> None:
-        arm1_gripper_qpos = self._joint_qpos_address("arm1_gripper")
-        arm2_gripper_qpos = self._joint_qpos_address("arm2_gripper")
-        self.data.qpos[arm1_gripper_qpos] = self.actuator_ctrl_low[4]
-        self.data.qpos[arm2_gripper_qpos] = self.actuator_ctrl_low[7]
-        self.data.ctrl[4] = self.actuator_ctrl_low[4]
-        self.data.ctrl[7] = self.actuator_ctrl_low[7]
-
     def _bar_center(self, wall_idx: int) -> np.ndarray:
         wall_idx = int(np.clip(wall_idx, 0, len(self.wall_positions) - 1))
         return np.array([self.wall_positions[wall_idx], 0.0, self.wall_height])
@@ -204,78 +191,9 @@ class BrachiationEnv(gym.Env):
             ]
         )
 
-    def _snap_grip_site_to_bar(self, wall_idx: int, site_name: str = "arm1_tip") -> None:
-        mujoco.mj_forward(self.model, self.data)
-        site_pos = self._get_site_pos(site_name)
-        grip_target = self._bar_grip_target(wall_idx)
-        delta = np.array(
-            [
-                grip_target[0] - site_pos[0],
-                grip_target[1] - site_pos[1],
-                grip_target[2] - site_pos[2],
-            ]
-        )
-        self.data.qpos[:3] += delta
-        self.data.qvel[:] = 0.0
-        mujoco.mj_forward(self.model, self.data)
-
-    def _latch_grip(self, site_name: str, wall_idx: int) -> None:
-        self.latched_site_name = site_name
-        self.latched_bar_idx = int(np.clip(wall_idx, 0, len(self.wall_positions) - 1))
-
-    def _clear_grip_latch(self) -> None:
-        self.latched_site_name = None
-        self.latched_bar_idx = None
+    def _clear_grip_assist_info(self) -> None:
         self.grip_assist_error = 0.0
         self.grip_assist_force = 0.0
-
-    def _site_velocity(self, site_name: str) -> np.ndarray:
-        site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
-        if site_id < 0:
-            return np.zeros(3)
-        jacp = np.zeros((3, self.model.nv))
-        jacr = np.zeros((3, self.model.nv))
-        mujoco.mj_jacSite(self.model, self.data, jacp, jacr, site_id)
-        return jacp @ self.data.qvel
-
-    def _apply_grip_assist(self) -> None:
-        """Apply a virtual closed-hand latch to keep the hand on the bar."""
-        if self.latched_site_name is None or self.latched_bar_idx is None:
-            self.grip_assist_error = 0.0
-            self.grip_assist_force = 0.0
-            return
-
-        site_id = mujoco.mj_name2id(
-            self.model,
-            mujoco.mjtObj.mjOBJ_SITE,
-            self.latched_site_name,
-        )
-        if site_id < 0:
-            self._clear_grip_latch()
-            return
-
-        site_pos = self.data.site_xpos[site_id].copy()
-        target = self._bar_grip_target(self.latched_bar_idx)
-        error = target - site_pos
-        site_vel = self._site_velocity(self.latched_site_name)
-        force = self.grip_assist_stiffness * error - self.grip_assist_damping * site_vel
-        force_norm = np.linalg.norm(force)
-        if force_norm > self.grip_assist_max_force:
-            force *= self.grip_assist_max_force / force_norm
-            force_norm = self.grip_assist_max_force
-
-        body_id = self.model.site_bodyid[site_id]
-        mujoco.mj_applyFT(
-            self.model,
-            self.data,
-            force,
-            np.zeros(3),
-            site_pos,
-            body_id,
-            self.data.qfrc_applied,
-        )
-        self.grip_assist_error = float(np.linalg.norm(error[[0, 2]]))
-        self.grip_assist_force = float(force_norm)
 
     def _normalized_action_to_ctrl(self, action: np.ndarray) -> np.ndarray:
         """Map normalized policy actions to MuJoCo actuator control targets."""
@@ -429,6 +347,21 @@ class BrachiationEnv(gym.Env):
                     break
         return count
 
+    def _is_contacting_bar(self, wall_idx: int) -> bool:
+        """Return whether the robot is currently touching a specific grasp bar."""
+        target_bar = f"bar{int(np.clip(wall_idx, 0, len(self.wall_positions) - 1)) + 1}"
+        for contact_idx in range(self.data.ncon):
+            contact = self.data.contact[contact_idx]
+            for geom_id in (contact.geom1, contact.geom2):
+                geom_name = mujoco.mj_id2name(
+                    self.model,
+                    mujoco.mjtObj.mjOBJ_GEOM,
+                    geom_id,
+                )
+                if geom_name == target_bar:
+                    return True
+        return False
+
     def _has_bar_grip(self) -> bool:
         return self._bar_contact_count() > 0
 
@@ -445,7 +378,7 @@ class BrachiationEnv(gym.Env):
 
         # Reset MuJoCo state
         mujoco.mj_resetData(self.model, self.data)
-        self._clear_grip_latch()
+        self._clear_grip_assist_info()
 
         # Load the "hanging" keyframe if it exists
         if self.initial_keyframe is not None:
@@ -458,18 +391,7 @@ class BrachiationEnv(gym.Env):
                 mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
 
         self._clip_limited_joint_qpos()
-        self._close_grippers_in_state()
         self._set_ctrl_to_current_pose()
-
-        # Minimal random perturbation - too much causes instability
-        if self.np_random is not None:
-            noise = self.np_random.uniform(-0.005, 0.005, size=self.model.nq)
-            # Keep base position and orientation stable
-            noise[:7] = 0.0  # No noise on free joint
-            # Don't perturb grippers
-            noise[11] = 0  # arm1_gripper
-            noise[14] = 0  # arm2_gripper
-            self.data.qpos[:] += noise
 
         # DOMAIN RANDOMIZATION: Randomize link masses (robustness) - reduced range
         if self.np_random is not None:
@@ -504,17 +426,11 @@ class BrachiationEnv(gym.Env):
                 self.data.qpos[0] += shift
 
         self._clip_limited_joint_qpos()
-        self._close_grippers_in_state()
         self._set_ctrl_to_current_pose()
-        self._snap_grip_site_to_bar(start_wall_idx)
-        self._close_grippers_in_state()
-        self._set_ctrl_to_current_pose()
-        self._latch_grip("arm1_tip", start_wall_idx)
 
-        # Step a few times to let physics settle (fewer steps to prevent instability)
-        for _ in range(10):
+        # Step long enough for the gripper to seat on the bar before training starts.
+        for _ in range(120):
             self.data.qfrc_applied[:] = 0.0
-            self._apply_grip_assist()
             mujoco.mj_step(self.model, self.data)
             # Check for simulation instability
             if np.any(np.isnan(self.data.qpos)) or np.any(np.abs(self.data.qpos) > 100):
@@ -537,55 +453,14 @@ class BrachiationEnv(gym.Env):
         # Initialize distance tracking for reward
         self.prev_distance_to_goal = self.target_pos[0] - self.data.qpos[0]
 
-        # Update walls_cleared based on starting position
-        self.walls_cleared = 0
-        for w_pos in self.wall_positions:
-            if self.initial_base_pos[0] > w_pos + 0.02:
-                self.walls_cleared += 1
+        # The curriculum index is the bar currently being gripped at reset.
+        # The base can sit slightly ahead of that bar, so base-x alone is not reliable here.
+        self.walls_cleared = start_wall_idx
 
         obs = self._get_obs()
         info = {"initial_pos": self.initial_base_pos.copy(), "walls_cleared": self.walls_cleared}
 
         return obs, info
-
-    def _apply_grasp_reflex(self, action: np.ndarray) -> np.ndarray:
-        """
-        Bio-Inspired Grasp Reflex:
-        If hand is close to wall or touching it, automatically close the gripper.
-        Overrides specific indices in the action array.
-        """
-        # Distances are computed in _get_obs -> stored in self.current_hand_to_wall_dist
-        # But we need specific arm distances here.
-        # Let's re-query or compute simply.
-
-        # Arm 1
-        touch1 = self._get_touch_sensor("arm1_touch")
-        # We need hand-to-wall dist for arm 1 specifically.
-        # For efficiency, let's just check touch first as it's most robust.
-
-        # Override if touching
-        # arm1_gripper is idx 4 (actuator index) based on xml
-        # arm2_gripper is idx 7
-
-        # Note: action is scaled [-1, 1]. -1 is closed (based on reset).
-
-        if touch1 > 0.01:
-            action[4] = -1.0  # Force close
-
-        # Arm 2
-        touch2 = self._get_touch_sensor("arm2_touch")
-        if touch2 > 0.01:
-            action[7] = -1.0  # Force close
-
-        # Proximity Reflex (Visual/Distance based)
-        # Distance data is available from _get_obs, but relying on that call order
-        # here would make the reflex harder to reason about.
-        # Let's trust the touch sensor primarily for the "Reflex".
-        # Pure proximity reflex might be annoying if we want to release?
-        # A true reflex usually inhibits release if holding something.
-        # Let's stick to Contact Reflex for now. It's cleaner.
-
-        return action
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Take a step in the environment."""
@@ -595,8 +470,6 @@ class BrachiationEnv(gym.Env):
             action = np.reshape(action, self.action_space.shape)
         action = np.clip(action, -1.0, 1.0)
 
-        # Apply Bio-Inspired Reflex (Override actions)
-        action = self._apply_grasp_reflex(action.copy())
         ctrl = self._normalized_action_to_ctrl(action)
 
         # Apply action to actuators
@@ -615,7 +488,6 @@ class BrachiationEnv(gym.Env):
         # Step simulation
         for _ in range(self.frame_skip):
             self.data.qfrc_applied[:] = 0.0
-            self._apply_grip_assist()
             mujoco.mj_step(self.model, self.data)
 
         self.current_step += 1
@@ -679,7 +551,7 @@ class BrachiationEnv(gym.Env):
         info["grip_reward"] = grip_reward
         info["bar_grip_reward"] = bar_grip_reward
         info["bar_contact_count"] = float(bar_contact_count)
-        info["grip_assist_active"] = float(self.latched_bar_idx is not None)
+        info["grip_assist_active"] = 0.0
         info["grip_assist_error"] = self.grip_assist_error
         info["grip_assist_force"] = self.grip_assist_force
         info["touch1"] = touch1
@@ -815,6 +687,7 @@ class BrachiationEnv(gym.Env):
         while (
             self.walls_cleared < len(self.wall_positions)
             and robot_x > self.wall_positions[self.walls_cleared] + 0.02
+            and not self._is_contacting_bar(self.walls_cleared)
         ):
             self.walls_cleared += 1
 
@@ -858,7 +731,7 @@ class BrachiationEnv(gym.Env):
         info["grip_reward"] = grip_reward
         info["bar_grip_reward"] = bar_grip_reward
         info["bar_contact_count"] = float(bar_contact_count)
-        info["grip_assist_active"] = float(self.latched_bar_idx is not None)
+        info["grip_assist_active"] = 0.0
         info["grip_assist_error"] = self.grip_assist_error
         info["grip_assist_force"] = self.grip_assist_force
 
