@@ -1,5 +1,7 @@
 # Dual-Arm Brachiation Robot
 
+![Dual-arm brachiation robot CAD design](docs/images/cad-design-1.png)
+
 A reinforcement learning project for training a dual-arm robot to traverse walls using brachiation (swing) locomotion with MuJoCo physics simulation.
 
 ## Quick Start
