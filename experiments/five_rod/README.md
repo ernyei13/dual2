@@ -1,5 +1,7 @@
 # DUAL2 five-rod traversal (rods 22 cm apart, self-collision on)
 
+![Five-rod traversal, three-quarter view, 2x speed](traversal.gif)
+
 ## Videos (1920×1080, 25 fps, real time; all four are the same continuous run)
 | File | View |
 |---|---|

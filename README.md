@@ -4,6 +4,12 @@
 
 A reinforcement learning project for training a dual-arm robot to traverse walls using brachiation (swing) locomotion with MuJoCo physics simulation.
 
+## Demo: five-rod traversal
+
+![DUAL2 crossing five rods 22 cm apart (2x speed)](experiments/five_rod/traversal.gif)
+
+Hand-over-hand traversal of five rods spaced 22 cm apart, with self-collision enabled. Full-resolution videos from three angles, code and details are in [experiments/five_rod](experiments/five_rod/).
+
 ## Quick Start
 
 ### 1. Install Dependencies
