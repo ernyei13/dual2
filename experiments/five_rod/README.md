@@ -61,7 +61,7 @@ Training uses the cross-entropy method in MuJoCo. It is a black-box search, not 
 3. The last transfer must also survive the 3 s hang.
 
 ## Robustness audit
-Audit of the pushed parameters (`python audit3.py`): full traversal including the 3 s final hang on 8/21 shoulder-offset starts (nominal included) and 3/20 random multi-joint starts; zero floor contact; max self-overlap 6.6 mm (soft contact). Transfer 3 is the weak link; a wider robustness pass is in progress.
+Audit of the pushed parameters (`python audit3.py`), counting a run as a success only if it completes all four transfers and then keeps hanging for 3 s: **8/21** shoulder-offset starts (nominal included) and **7/20** random multi-joint starts. No floor contact in any run, and the largest self-overlap was 6.6 mm (soft contact). Most failures still happen on transfer 3, then transfer 2.
 
 ## Caveats
 * The controller reads gripper and center-of-mass positions straight from the simulator. A real robot would need to estimate them from joint encoders, plus an IMU or the known rod positions.

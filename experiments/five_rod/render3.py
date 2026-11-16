@@ -184,7 +184,8 @@ class Recorder:
     def cb(self, ph, k, f, j, hold):
         self.n += 1
         self.forces = f.sum(0)
-        self.status = f'Transfer {ph + 1}/4 — {LABELS[ph]}' + ('  ·  holding' if hold else '')
+        self.status = ('Done: all four transfers · hanging from rod 5' if self.done == 4
+                       else f'Transfer {ph + 1}/4 — {LABELS[ph]}' + ('  ·  holding' if hold else ''))
         if self.n % 2 == 0: return               # control step is 20 ms -> 25 fps real time
         self.frame()
 
