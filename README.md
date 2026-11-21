@@ -6,9 +6,9 @@ A reinforcement learning project for training a dual-arm robot to traverse walls
 
 ## Demo: five-rod traversal
 
-![DUAL2 crossing five rods 22 cm apart (2x speed)](experiments/five_rod/traversal.gif)
+![DUAL2 crossing five rods 22 cm apart, side view (2x speed)](experiments/five_rod/side_clean.gif)
 
-Hand-over-hand traversal of five rods spaced 22 cm apart, with self-collision enabled. Full-resolution videos from three angles, code and details are in [experiments/five_rod](experiments/five_rod/).
+DUAL2 swings hand over hand across five rods spaced 22 cm apart, hanging only from its grippers, with self-collision enabled so the links behave as solid bodies. The policy, training code, videos from three angles and a Cinema 4D / FBX export of this exact rollout are in [experiments/five_rod](experiments/five_rod/).
 
 ## Quick Start
 

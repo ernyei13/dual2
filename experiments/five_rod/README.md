@@ -9,9 +9,19 @@
 | `side.mp4` | Telephoto side view: rods seen end-on, so you can read the swing |
 | `gripper_closeup.mp4` | Close-up that follows the two grippers, for judging each catch and release |
 | `triptych.mp4` | All three views in one frame |
+| `side_clean.mp4` | Side view with no overlay: white background, darker green robot, rails running off both sides (`render_side_clean.py`) |
 
 The overlay shows simulation time, transfers completed (out of 4), the current phase, and the vertical load on each rod.
 Every frame comes from the physics simulation. Nothing is keyframed for the video.
+
+## 3D export for Cinema 4D / Blender
+[`export/`](export/) holds this exact rollout, ready to hand to a 3D artist:
+* `dual2_five_rod.fbx` and `.blend`: an animated link hierarchy with the CAD meshes and the bars, at 50 fps
+* per-link OBJ meshes
+* joint-angle and world-transform CSVs
+* a JSON file with the joint axes and bar dimensions
+
+[`export/README_C4D.md`](export/README_C4D.md) covers import, timing, units and the rig. Run `export_rollout.py` and then `build_c4d.py` in Blender to regenerate it.
 
 ## The task
 The robot starts hanging from rods 1 and 2. It moves hand over hand (2→3, 3→4, 4→5) until it hangs from rod 5.

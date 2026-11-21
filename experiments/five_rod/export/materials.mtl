@@ -1,0 +1,16 @@
+newmtl silver
+Kd 0.6040 0.6470 0.6860
+d 1.000
+
+newmtl dark_gray
+Kd 0.3020 0.3020 0.3020
+d 1.000
+
+newmtl white
+Kd 0.9180 0.9180 0.9180
+d 1.000
+
+newmtl green
+Kd 0.3290 0.7880 0.1140
+d 1.000
+
